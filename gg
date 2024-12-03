@@ -36,9 +36,9 @@ frontend:
 
     # Wait for the server to start
     - echo "Waiting for Vue server to fully start..."
-    - sleep 20  # Increased wait time to ensure Vue has enough time to start
+    - sleep 15  # Reduced wait time to avoid unnecessary delays
 
-    # Verify Vue server is up
+    # Verify Vue server is up using curl
     - echo "Checking Vue server on $INTERNAL_IP:$VUE_PORT..."
     - curl -s --head http://$INTERNAL_IP:$VUE_PORT || exit 1  # Check if the server is responding on the port
 
@@ -79,9 +79,9 @@ backend:
 
     # Wait for the server to start
     - echo "Waiting for Django server to fully start..."
-    - sleep 20  # Increased wait time to ensure Django has enough time to start
+    - sleep 15  # Reduced wait time to avoid unnecessary delays
 
-    # Verify Django server is up
+    # Verify Django server is up using curl
     - echo "Checking Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - curl -s --head http://$INTERNAL_IP:$DJANGO_PORT || exit 1  # Check if the server is responding on the port
 
