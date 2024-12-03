@@ -14,6 +14,17 @@ frontend:
   stage: frontend
   tags:
     - shell
+  before_script:
+    # Install Node.js and npm if not already available
+    - echo "Checking for Node.js and npm..."
+    - if ! command -v npm &> /dev/null; then
+        echo "npm not found, installing Node.js...";
+        curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -;
+        sudo apt-get install -y nodejs;
+      else
+        echo "Node.js and npm are already installed.";
+      fi
+
   script:
     # Install dependencies for Vue
     - echo "Installing dependencies for Vue..."
@@ -43,7 +54,6 @@ frontend:
   artifacts:
     paths:
       - $VUE_LOG
-   
 
 backend:
   stage: backend
@@ -78,4 +88,3 @@ backend:
   artifacts:
     paths:
       - $DJANGO_LOG
-   
