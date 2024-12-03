@@ -16,7 +16,7 @@ frontend:
   tags:
     - shell
   script:
-    # Check if port $VUE_PORT is available
+    # Verify if the port is available before starting the Vue server
     - echo "Checking if port $VUE_PORT is available..."
     - if lsof -i :$VUE_PORT; then
         echo "Port $VUE_PORT is already in use!";
@@ -30,7 +30,7 @@ frontend:
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
         echo "Screen session '$VUE_SCREEN_NAME' already running.";
       else
-        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host 0.0.0.0 --port $VUE_PORT > $VUE_LOG 2>&1";
+        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP > $VUE_LOG 2>&1";
         echo "Vue server started on $INTERNAL_IP:$VUE_PORT.";
       fi
 
@@ -38,11 +38,11 @@ frontend:
     - echo "Waiting for Vue server to fully start..."
     - sleep 20  # Increased wait time to ensure Vue has enough time to start
 
-    # Check if Vue server is running
+    # Verify Vue server is up
     - echo "Checking Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - curl -s --head http://$INTERNAL_IP:$VUE_PORT || (echo "Vue server is not running on $INTERNAL_IP:$VUE_PORT"; exit 1)
+    - curl -s --head http://$INTERNAL_IP:$VUE_PORT || exit 1  # Check if the server is responding on the port
 
-    # Tail the Vue logs for debugging
+    # Tail Vue logs for debugging
     - echo "Tail Vue logs:"
     - tail -n 40 $VUE_LOG
   artifacts:
@@ -55,7 +55,7 @@ backend:
   tags:
     - shell
   script:
-    # Check if port $DJANGO_PORT is available
+    # Verify if the port is available before starting the Django server
     - echo "Checking if port $DJANGO_PORT is available..."
     - if lsof -i :$DJANGO_PORT; then
         echo "Port $DJANGO_PORT is already in use!";
@@ -73,7 +73,7 @@ backend:
     - if screen -list | grep -q "$DJANGO_SCREEN_NAME"; then
         echo "Screen session '$DJANGO_SCREEN_NAME' already running.";
       else
-        screen -dmS "$DJANGO_SCREEN_NAME" bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key > $DJANGO_LOG 2>&1";
+        screen -dmS "$DJANGO_SCREEN_NAME" bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key > $DJANGO_LOG 2>&1";
         echo "Django server started on $INTERNAL_IP:$DJANGO_PORT.";
       fi
 
@@ -81,11 +81,11 @@ backend:
     - echo "Waiting for Django server to fully start..."
     - sleep 20  # Increased wait time to ensure Django has enough time to start
 
-    # Check if Django server is running
+    # Verify Django server is up
     - echo "Checking Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    - curl -s --head http://$INTERNAL_IP:$DJANGO_PORT || (echo "Django server is not running on $INTERNAL_IP:$DJANGO_PORT"; exit 1)
+    - curl -s --head http://$INTERNAL_IP:$DJANGO_PORT || exit 1  # Check if the server is responding on the port
 
-    # Tail the Django logs for debugging
+    # Tail Django logs for debugging
     - echo "Tail Django logs:"
     - tail -n 40 $DJANGO_LOG
   artifacts:
