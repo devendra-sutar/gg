@@ -9,24 +9,20 @@ variables:
   VUE_PORT: "9980"
   DJANGO_LOG: "django_server.log"
   VUE_LOG: "vue_server.log"
-  SERVER_IP: "10.0.34.181"  # Fixed IP
+  INTERNAL_IP: "10.0.34.181"  # Internal IP for both frontend and backend
 
 frontend:
   stage: frontend
   tags:
     - shell
   script:
-    # Use fixed IP for the frontend URL
-    - export FRONTEND_URL="https://$SERVER_IP:$VUE_PORT"
-    - echo "Frontend server will be accessible at $FRONTEND_URL"
-
-    # Start Vue server in a screen session
-    - echo "Starting Vue server on port $VUE_PORT..."
+    # Start Vue server in a screen session, binding to the internal IP
+    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
         echo "Screen session '$VUE_SCREEN_NAME' already running.";
       else
-        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host 0.0.0.0 --port $VUE_PORT > $VUE_LOG 2>&1";
-        echo "Vue server started on port $VUE_PORT.";
+        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host $INTERNAL_IP --port $VUE_PORT > $VUE_LOG 2>&1";
+        echo "Vue server started on $INTERNAL_IP:$VUE_PORT.";
       fi
 
     # Wait for the server to start
@@ -34,11 +30,11 @@ frontend:
     - sleep 10
 
     # Verify Vue server
-    - echo "Checking Vue server on port $VUE_PORT..."
+    - echo "Checking Vue server on $INTERNAL_IP:$VUE_PORT..."
     - if lsof -i :$VUE_PORT; then
-        echo "Vue server is running on port $VUE_PORT at $FRONTEND_URL.";
+        echo "Vue server is running on $INTERNAL_IP:$VUE_PORT.";
       else
-        echo "Vue server is not running on port $VUE_PORT.";
+        echo "Vue server is not running on $INTERNAL_IP:$VUE_PORT.";
         exit 1;
       fi
 
@@ -55,32 +51,31 @@ backend:
   tags:
     - shell
   script:
-    # Use fixed IP for the backend URL
-    - export BACKEND_URL="https://$SERVER_IP:$DJANGO_PORT"
-    - echo "Django server will be accessible at $BACKEND_URL"
-
     # Install dependencies for Django
     - echo "Installing Django dependencies..."
     - poetry install
 
-    # Start Django server in a screen session
-    - echo "Starting Django server on port $DJANGO_PORT..."
+    # Start Django server in a screen session, binding to the internal IP
+    - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - if screen -list | grep -q "$DJANGO_SCREEN_NAME"; then
         echo "Screen session '$DJANGO_SCREEN_NAME' already running.";
       else
-        screen -dmS "$DJANGO_SCREEN_NAME" bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key > $DJANGO_LOG 2>&1";
-        echo "Django server started on port $DJANGO_PORT.";
+        screen -dmS "$DJANGO_SCREEN_NAME" bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key > $DJANGO_LOG 2>&1";
+        echo "Django server started on $INTERNAL_IP:$DJANGO_PORT.";
       fi
 
     # Verify Django server
-    - echo "Checking Django server on port $DJANGO_PORT..."
+    - echo "Checking Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - if lsof -i :$DJANGO_PORT; then
-        echo "Django server is running on port $DJANGO_PORT at $BACKEND_URL.";
+        echo "Django server is running on $INTERNAL_IP:$DJANGO_PORT.";
       else
-        echo "Django server is not running on port $DJANGO_PORT.";
+        echo "Django server is not running on $INTERNAL_IP:$DJANGO_PORT.";
         exit 1;
       fi
 
+    # Tail Django logs for debugging
+    - echo "Tail Django logs:"
+    - tail -n 20 $DJANGO_LOG
   artifacts:
     paths:
       - $DJANGO_LOG
