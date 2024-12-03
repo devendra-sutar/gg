@@ -1,0 +1,31 @@
+stages:
+  - frontend
+  - backend
+
+variables:
+  DJANGO_PORT: "8000"
+  VUE_PORT: "9980"
+  INTERNAL_IP: "0.0.0.0"  # Binding to all network interfaces
+
+frontend:
+  stage: frontend
+  tags:
+    - shell
+  script:
+    # Start Vue server
+    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
+    - screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP"
+    - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
+
+backend:
+  stage: backend
+  tags:
+    - shell
+  script:
+    # Install Django dependencies
+    - poetry install
+
+    # Start Django server
+    - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
+    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
+    - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
