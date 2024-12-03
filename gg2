@@ -16,7 +16,8 @@ frontend:
   script:
     # Start Vue server
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
+    - |
+      if screen -list | grep -q "$VUE_SCREEN_NAME"; then
         echo "Vue server screen session already running.";
       else
         screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP";
@@ -25,7 +26,8 @@ frontend:
 
     # Check if the Vue server is running
     - echo "Checking if Vue server is running on $INTERNAL_IP:$VUE_PORT..."
-    - if lsof -i :$VUE_PORT; then
+    - |
+      if lsof -i :$VUE_PORT; then
         echo "Vue server is running on $INTERNAL_IP:$VUE_PORT.";
       else
         echo "Vue server failed to start.";
@@ -37,11 +39,10 @@ backend:
   tags:
     - shell
   script:
-    
-
     # Start Django server
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    - if screen -list | grep -q "$DJANGO_SCREEN_NAME"; then
+    - |
+      if screen -list | grep -q "$DJANGO_SCREEN_NAME"; then
         echo "Django server screen session already running.";
       else
         screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key";
@@ -50,7 +51,8 @@ backend:
 
     # Check if the Django server is running
     - echo "Checking if Django server is running on $INTERNAL_IP:$DJANGO_PORT..."
-    - if lsof -i :$DJANGO_PORT; then
+    - |
+      if lsof -i :$DJANGO_PORT; then
         echo "Django server is running on $INTERNAL_IP:$DJANGO_PORT.";
       else
         echo "Django server failed to start.";
