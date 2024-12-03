@@ -1,0 +1,81 @@
+stages:
+  - frontend
+  - backend
+
+variables:
+  DJANGO_SCREEN_NAME: "django"
+  VUE_SCREEN_NAME: "vue"
+  DJANGO_LOG: "django_server.log"
+  VUE_LOG: "vue_server.log"
+  DJANGO_PORT: "8000"
+  VUE_PORT: "9980"  # Updated port for Vue
+
+frontend:
+  stage: frontend
+  tags:
+    - shell
+  script:
+    # Install dependencies for Vue
+    - echo "Installing dependencies for Vue..."
+    - npm install
+
+    # Start Vue server in a screen session
+    - echo "Starting Vue server on port $VUE_PORT..."
+    - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
+        echo "Screen session '$VUE_SCREEN_NAME' already running.";
+      else
+        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host 0.0.0.0 --port $VUE_PORT > $VUE_LOG 2>&1";
+        echo "Vue server started in screen session '$VUE_SCREEN_NAME' on port $VUE_PORT.";
+      fi
+
+    # Verify Vue server
+    - echo "Checking Vue server on port $VUE_PORT..."
+    - if lsof -i :$VUE_PORT; then
+        echo "Vue server is running on port $VUE_PORT";
+      else
+        echo "Vue server is not running on port $VUE_PORT";
+        exit 1;
+      fi
+
+    # Tail Vue logs for debugging
+    - echo "Tail Vue logs:"
+    - tail -n 20 $VUE_LOG
+  artifacts:
+    paths:
+      - $VUE_LOG
+   
+
+backend:
+  stage: backend
+  tags:
+    - shell
+  script:
+    # Install dependencies for Django
+    - echo "Installing dependencies for Django..."
+    - poetry install
+
+    # Start Django server in a screen session
+    - echo "Starting Django server on port $DJANGO_PORT..."
+    - if screen -list | grep -q "$DJANGO_SCREEN_NAME"; then
+        echo "Screen session '$DJANGO_SCREEN_NAME' already running.";
+      else
+        screen -dmS "$DJANGO_SCREEN_NAME" bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key > $DJANGO_LOG 2>&1";
+        echo "Django server started in screen session '$DJANGO_SCREEN_NAME' on port $DJANGO_PORT.";
+      fi
+
+    # Verify Django server
+    - echo "Checking Django server on port $DJANGO_PORT..."
+    - if lsof -i :$DJANGO_PORT; then
+        echo "Django server is running on port $DJANGO_PORT";
+      else
+        echo "Django server is not running on port $DJANGO_PORT";
+        exit 1;
+      fi
+
+    # Tail Django logs for debugging
+    - echo "Tail Django logs:"
+    - tail -n 20 $DJANGO_LOG
+  artifacts:
+    paths:
+      - $DJANGO_LOG
+   
