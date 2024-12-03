@@ -36,16 +36,11 @@ frontend:
 
     # Wait for the server to start
     - echo "Waiting for Vue server to fully start..."
-    - sleep 15  # Increased wait time to ensure Vue has enough time to start
+    - sleep 20  # Increased wait time to ensure Vue has enough time to start
 
-    # Verify Vue server
+    # Verify Vue server is up
     - echo "Checking Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - if lsof -i :$VUE_PORT; then
-        echo "Vue server is running on $INTERNAL_IP:$VUE_PORT.";
-      else
-        echo "Vue server is not running on $INTERNAL_IP:$VUE_PORT.";
-        exit 1;
-      fi
+    - curl -s --head http://$INTERNAL_IP:$VUE_PORT || exit 1  # Check if the server is responding on the port
 
     # Tail Vue logs for debugging
     - echo "Tail Vue logs:"
@@ -84,16 +79,11 @@ backend:
 
     # Wait for the server to start
     - echo "Waiting for Django server to fully start..."
-    - sleep 15  # Increased wait time to ensure Django has enough time to start
+    - sleep 20  # Increased wait time to ensure Django has enough time to start
 
-    # Verify Django server
+    # Verify Django server is up
     - echo "Checking Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    - if lsof -i :$DJANGO_PORT; then
-        echo "Django server is running on $INTERNAL_IP:$DJANGO_PORT.";
-      else
-        echo "Django server is not running on $INTERNAL_IP:$DJANGO_PORT.";
-        exit 1;
-      fi
+    - curl -s --head http://$INTERNAL_IP:$DJANGO_PORT || exit 1  # Check if the server is responding on the port
 
     # Tail Django logs for debugging
     - echo "Tail Django logs:"
