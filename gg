@@ -15,10 +15,6 @@ frontend:
   tags:
     - shell
   script:
-    # Install dependencies for Vue
-    - echo "Installing Vue dependencies..."
-    - npm install
-
     # Start Vue server in a screen session
     - echo "Starting Vue server on port $VUE_PORT..."
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
@@ -27,6 +23,10 @@ frontend:
         screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host 0.0.0.0 --port $VUE_PORT > $VUE_LOG 2>&1";
         echo "Vue server started on port $VUE_PORT.";
       fi
+
+    # Wait for the server to start
+    - echo "Waiting for Vue server to fully start..."
+    - sleep 10
 
     # Verify Vue server
     - echo "Checking Vue server on port $VUE_PORT..."
@@ -37,6 +37,9 @@ frontend:
         exit 1;
       fi
 
+    # Tail Vue logs for debugging
+    - echo "Tail Vue logs:"
+    - tail -n 20 $VUE_LOG
   artifacts:
     paths:
       - $VUE_LOG
