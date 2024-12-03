@@ -21,7 +21,7 @@ frontend:
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
         echo "Screen session '$VUE_SCREEN_NAME' already running.";
       else
-        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --host $INTERNAL_IP --port $VUE_PORT > $VUE_LOG 2>&1";
+        screen -dmS "$VUE_SCREEN_NAME" bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP > $VUE_LOG 2>&1";
         echo "Vue server started on $INTERNAL_IP:$VUE_PORT.";
       fi
 
