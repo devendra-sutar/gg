@@ -37,9 +37,7 @@ backend:
   tags:
     - shell
   script:
-    # Install Django dependencies
-    - echo "Installing Django dependencies..."
-    - poetry install
+    
 
     # Start Django server
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
