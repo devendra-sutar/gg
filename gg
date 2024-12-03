@@ -9,12 +9,17 @@ variables:
   VUE_PORT: "9980"
   DJANGO_LOG: "django_server.log"
   VUE_LOG: "vue_server.log"
+  SERVER_IP: "10.0.34.181"  # Fixed IP
 
 frontend:
   stage: frontend
   tags:
     - shell
   script:
+    # Use fixed IP for the frontend URL
+    - export FRONTEND_URL="https://$SERVER_IP:$VUE_PORT"
+    - echo "Frontend server will be accessible at $FRONTEND_URL"
+
     # Start Vue server in a screen session
     - echo "Starting Vue server on port $VUE_PORT..."
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
@@ -31,7 +36,7 @@ frontend:
     # Verify Vue server
     - echo "Checking Vue server on port $VUE_PORT..."
     - if lsof -i :$VUE_PORT; then
-        echo "Vue server is running on port $VUE_PORT.";
+        echo "Vue server is running on port $VUE_PORT at $FRONTEND_URL.";
       else
         echo "Vue server is not running on port $VUE_PORT.";
         exit 1;
@@ -50,6 +55,10 @@ backend:
   tags:
     - shell
   script:
+    # Use fixed IP for the backend URL
+    - export BACKEND_URL="https://$SERVER_IP:$DJANGO_PORT"
+    - echo "Django server will be accessible at $BACKEND_URL"
+
     # Install dependencies for Django
     - echo "Installing Django dependencies..."
     - poetry install
@@ -66,7 +75,7 @@ backend:
     # Verify Django server
     - echo "Checking Django server on port $DJANGO_PORT..."
     - if lsof -i :$DJANGO_PORT; then
-        echo "Django server is running on port $DJANGO_PORT.";
+        echo "Django server is running on port $DJANGO_PORT at $BACKEND_URL.";
       else
         echo "Django server is not running on port $DJANGO_PORT.";
         exit 1;
