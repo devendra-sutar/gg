@@ -16,6 +16,15 @@ frontend:
   tags:
     - shell
   script:
+    # Verify if the port is available before starting the Vue server
+    - echo "Checking if port $VUE_PORT is available..."
+    - if lsof -i :$VUE_PORT; then
+        echo "Port $VUE_PORT is already in use!";
+        exit 1;
+      else
+        echo "Port $VUE_PORT is available.";
+      fi
+
     # Start Vue server in a screen session, binding to the internal IP
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
     - if screen -list | grep -q "$VUE_SCREEN_NAME"; then
@@ -27,7 +36,7 @@ frontend:
 
     # Wait for the server to start
     - echo "Waiting for Vue server to fully start..."
-    - sleep 10
+    - sleep 15  # Increased wait time to ensure Vue has enough time to start
 
     # Verify Vue server
     - echo "Checking Vue server on $INTERNAL_IP:$VUE_PORT..."
@@ -40,7 +49,7 @@ frontend:
 
     # Tail Vue logs for debugging
     - echo "Tail Vue logs:"
-    - tail -n 20 $VUE_LOG
+    - tail -n 40 $VUE_LOG
   artifacts:
     paths:
       - $VUE_LOG
@@ -51,6 +60,15 @@ backend:
   tags:
     - shell
   script:
+    # Verify if the port is available before starting the Django server
+    - echo "Checking if port $DJANGO_PORT is available..."
+    - if lsof -i :$DJANGO_PORT; then
+        echo "Port $DJANGO_PORT is already in use!";
+        exit 1;
+      else
+        echo "Port $DJANGO_PORT is available.";
+      fi
+
     # Install dependencies for Django
     - echo "Installing Django dependencies..."
     - poetry install
@@ -64,6 +82,10 @@ backend:
         echo "Django server started on $INTERNAL_IP:$DJANGO_PORT.";
       fi
 
+    # Wait for the server to start
+    - echo "Waiting for Django server to fully start..."
+    - sleep 15  # Increased wait time to ensure Django has enough time to start
+
     # Verify Django server
     - echo "Checking Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - if lsof -i :$DJANGO_PORT; then
@@ -75,7 +97,7 @@ backend:
 
     # Tail Django logs for debugging
     - echo "Tail Django logs:"
-    - tail -n 20 $DJANGO_LOG
+    - tail -n 40 $DJANGO_LOG
   artifacts:
     paths:
       - $DJANGO_LOG
