@@ -1,0 +1,43 @@
+stages:
+  - frontend
+  - backend
+
+variables:
+  DJANGO_PORT: "8000"
+  VUE_PORT: "9980"
+  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
+  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
+  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
+
+# Start Vue server (Frontend)
+frontend:
+  stage: frontend
+  tags:
+    - shell
+  script:
+    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
+    - cd frontend && npm install && npm run dev --port $VUE_PORT --host $INTERNAL_IP &
+    - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
+    - sleep 10  # Wait for Vue server to fully start
+    - echo "Checking if Vue server is reachable over HTTPS..."
+    - curl -vk $FRONTEND_URL || echo "Vue server not reachable over HTTPS"
+
+# Start Django server (Backend)
+backend:
+  stage: backend
+  tags:
+    - shell
+  script:
+    - echo "Creating a Python virtual environment..."
+    - python3 -m venv env  # Create a virtual environment
+    - source env/bin/activate  # Activate the virtual environment
+    - echo "Installing Python dependencies..."
+    - pip install --upgrade pip  # Upgrade pip to the latest version
+    - pip install django-extensions werkzeug pyopenssl  # Install additional dependencies
+    - pip install -r requirements.txt || poetry install  # Install other dependencies
+    - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
+    - python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key &
+    - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
+    - sleep 10  # Wait for Django server to fully start
+    - echo "Checking if Django server is reachable over HTTPS..."
+    - curl -vk $BACKEND_URL || echo "Django server not reachable over HTTPS"
