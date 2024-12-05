@@ -5,14 +5,11 @@ stages:
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"
+  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
   FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
   BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
+  ENV_NAME: "omega"  # Name for the virtual environment
 
-# Use a custom Docker image with necessary dependencies installed
-image: python:3.12-slim
-
-# Start Vue server
 frontend:
   stage: frontend
   tags:
@@ -20,22 +17,37 @@ frontend:
   script:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
     - cd frontend
-    - screen -dmS vue bash -c "npm install && npm run dev"
+    - screen -dmS vue bash -c "npm run dev"
     - sleep 10  # Wait for server to start
     - curl -vk $FRONTEND_URL || echo "Vue server not reachable."
 
-# Start Django server
 backend:
   stage: backend
   tags:
     - shell
   script:
-    - echo "Setting up virtual environment..."
+    - echo "Setting up Python environment for backend..."
+
+    # Create a virtual environment for Python using virtualenv
+    - python3 -m venv $ENV_NAME  # Create virtual environment
+    - source $ENV_NAME/bin/activate  # Activate the virtual environment
+    
+    - echo "Installing Poetry in the virtual environment..."
     - curl -sSL https://install.python-poetry.org | python3 -  # Install Poetry
-    - export PATH="$HOME/.local/bin:$PATH"  # Add poetry to PATH
-    - cd backend  # Go to backend folder
-    - poetry install  # Install dependencies
-    - poetry shell  # Activate the virtual environment
-    - screen -dmS django bash -c "python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
+    - export PATH="$HOME/.local/bin:$PATH"  # Add Poetry to PATH
+    
+    # Verify Poetry installation
+    - poetry --version || echo "Poetry installation failed!"
+
+    # Go to the backend folder
+    - cd backend
+
+    # Install dependencies using Poetry
+    - poetry install
+
+    # Start Django server
+    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
     - sleep 10  # Wait for server to start
+
+    # Verify if the backend server is reachable
     - curl -vk $BACKEND_URL/admin || echo "Django server not reachable."
