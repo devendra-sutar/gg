@@ -5,9 +5,12 @@ stages:
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
+  INTERNAL_IP: "10.0.34.181"
   FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
   BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
+
+# Use a custom Docker image with necessary dependencies installed
+image: python:3.12-slim
 
 # Start Vue server
 frontend:
@@ -28,11 +31,7 @@ backend:
     - shell
   script:
     - echo "Setting up virtual environment..."
-    # Install required dependencies for building Python packages
-    - sudo apt update
-    - sudo apt install -y build-essential python3-dev libffi-dev
-    # Install Poetry if it's not installed
-    - curl -sSL https://install.python-poetry.org | python3 -
+    - curl -sSL https://install.python-poetry.org | python3 -  # Install Poetry
     - export PATH="$HOME/.local/bin:$PATH"  # Add poetry to PATH
     - cd backend  # Go to backend folder
     - poetry install  # Install dependencies
