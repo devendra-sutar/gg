@@ -1,14 +1,14 @@
 stages:
   - frontend
   - backend
-  - check_server_status
+  
 
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
   INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
-  FRONTEND_URL: "http://$INTERNAL_IP:$VUE_PORT"
-  BACKEND_URL: "http://$INTERNAL_IP:$DJANGO_PORT"
+  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
+  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
 
 
 # Start Vue server
@@ -18,8 +18,10 @@ frontend:
     - shell
   script:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - cd frontend && screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP"
+    - cd frontend && screen -dmS vue bash -c "npm run dev  --port $VUE_PORT --host $INTERNAL_IP"
     - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
+    #- sudo ufw allow 9980
+    #- curl -v https://10.0.34.181:9980 
 
 # Start Django server
 backend:
@@ -30,17 +32,6 @@ backend:
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - cd backend && screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
     - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
+    - curl -i  http://10.0.34.181:8000  
 
-# Check if the servers are up
-check_server_status:
-  stage: test
-  script:
-    - echo "Waiting for servers to start..."
-    - sleep 15  # Wait for 15 seconds to allow time for server startup
-    - echo "Checking if the Vue server is up..."
-    - curl -v https://10.0.34.181:9980  # Debugging the Vue server
-    - echo "Checking if the Django server is up..."
-    - curl -v https://10.0.34.181:8000  # Debugging the Django server
-
-        exit 1
-      fi
+ 
