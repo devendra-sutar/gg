@@ -1,7 +1,6 @@
 stages:
   - frontend
   - backend
-  
 
 variables:
   DJANGO_PORT: "8000"
@@ -10,7 +9,6 @@ variables:
   FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
   BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
 
-
 # Start Vue server
 frontend:
   stage: frontend
@@ -18,10 +16,10 @@ frontend:
     - shell
   script:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - cd frontend && screen -dmS vue bash -c "npm run dev  --port $VUE_PORT --host $INTERNAL_IP"
+    - cd frontend && screen -dmS vue bash -c "npm run dev --port $VUE_PORT --host $INTERNAL_IP"
     - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
     #- sudo ufw allow 9980
-    #- curl -v https://10.0.34.181:9980 
+    #- curl -v https://$FRONTEND_URL
 
 # Start Django server
 backend:
@@ -30,8 +28,6 @@ backend:
     - shell
   script:
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    - cd backend && screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
+    - cd backend && screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key"
     - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
-    - curl -i  http://10.0.34.181:8000  
-
- 
+    - curl -i http://$BACKEND_URL
