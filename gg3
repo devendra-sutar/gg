@@ -18,6 +18,14 @@ frontend:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
     - cd frontend && screen -dmS vue bash -c "npm install && npm run dev --port $VUE_PORT --host $INTERNAL_IP"
     - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
+    
+    # Wait for Vue server to start (verify by checking if the port is open)
+    - echo "Waiting for Vue server to be available..."
+    - until curl -s http://$INTERNAL_IP:$VUE_PORT > /dev/null; do
+        echo "Waiting for Vue server to be available..."
+        sleep 5
+      done
+    - echo "Vue server is up and running on $INTERNAL_IP:$VUE_PORT"
 
 # Start Django server
 backend:
@@ -28,14 +36,23 @@ backend:
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
     - cd backend && screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key"
     - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
-    
-    # Wait for backend to be available
-    - echo "Waiting for Django backend to start..."
+
+    # Optional: Check if backend process is running (via netstat)
+    - echo "Verifying if the backend process is running..."
+    - netstat -tuln | grep ":$DJANGO_PORT" || echo "Django server process not found"
+
+    # Wait for Django backend to start (retry until it's accessible)
+    - echo "Waiting for Django backend to be available..."
     - until curl -s http://$INTERNAL_IP:$DJANGO_PORT > /dev/null; do
         echo "Waiting for backend to be available..."
         sleep 5
       done
-    - echo "Backend is up and running."
-
-    # Check if the backend is reachable
-    - curl http://$INTERNAL_IP:$DJANGO_PORT
+    - echo "Backend is up and running on $INTERNAL_IP:$DJANGO_PORT"
+    
+    # Verify if the backend is accessible (curl)
+    - curl -i http://$INTERNAL_IP:$DJANGO_PORT
+    
+    
+    # Optional: Check if Vue process is running (via netstat)
+    - echo "Verifying if the frontend process is running..."
+    - netstat -tuln | grep ":$VUE_PORT" || echo "Vue server process not found"
