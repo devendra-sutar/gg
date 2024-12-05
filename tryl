@@ -1,28 +1,13 @@
 stages:
-  - setup
   - frontend
   - backend
 
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"  # The IP address
+  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
   FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
   BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
-
-# Setup Python environment with Poetry
-setup_virtualenv:
-  stage: setup
-  tags:
-    - shell
-  script:
-    - echo "Setting up virtual environment..."
-    - curl -sSL https://install.python-poetry.org | python3 -  # Install Poetry
-    - export PATH="$HOME/.local/bin:$PATH"  # Add poetry to PATH
-    - cd backend  # Go to backend folder
-    - poetry install  # Install dependencies
-    - poetry shell  # Activate the virtual environment
-    - echo "Virtual environment is ready."
 
 # Start Vue server
 frontend:
@@ -32,7 +17,7 @@ frontend:
   script:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
     - cd frontend
-    - screen -dmS vue bash -c "npm run dev"
+    - screen -dmS vue bash -c "npm install && npm run dev"
     - sleep 10  # Wait for server to start
     - curl -vk $FRONTEND_URL || echo "Vue server not reachable."
 
@@ -42,10 +27,16 @@ backend:
   tags:
     - shell
   script:
-    - cd backend
-    - echo "Activating the virtual environment and starting Django server..."
-    - poetry shell  # Activate poetry environment
+    - echo "Setting up virtual environment..."
+    # Install required dependencies for building Python packages
+    - sudo apt update
+    - sudo apt install -y build-essential python3-dev libffi-dev
+    # Install Poetry if it's not installed
+    - curl -sSL https://install.python-poetry.org | python3 -
+    - export PATH="$HOME/.local/bin:$PATH"  # Add poetry to PATH
+    - cd backend  # Go to backend folder
+    - poetry install  # Install dependencies
+    - poetry shell  # Activate the virtual environment
     - screen -dmS django bash -c "python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
     - sleep 10  # Wait for server to start
-    - curl -vk $BACKEND_URL/admin || echo "Django admin not reachable."
-    - echo "Django server is up."
+    - curl -vk $BACKEND_URL/admin || echo "Django server not reachable."
