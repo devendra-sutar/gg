@@ -5,59 +5,55 @@ stages:
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
+  INTERNAL_IP: "localhost"  # Binding to localhost
 
-# Frontend: Vue.js
 frontend:
   stage: frontend
   tags:
     - shell
-  before_script:
-    # Install Node.js and npm (using NodeSource)
-    - echo "Installing Node.js and npm..."
-    - curl -sL https://deb.nodesource.com/setup_18.x | bash -
-    - apt-get install -y nodejs
-    - node -v  # Verify Node.js version
-    - npm -v   # Verify npm version
   script:
-    - echo "Setting up Vue.js environment..."
-
-    # Install frontend dependencies
-    - echo "Installing frontend dependencies..."
-    - npm install
-
-    # Start Vue server in the background
-    - echo "Starting Vue server on localhost:$VUE_PORT..."
-    - screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host localhost"
-    - echo "Vue server started on localhost:$VUE_PORT"
-
-    # Optional: Verify if Vue.js app is running (health check)
+    # Start Vue server
+    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
+    - screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP"
+    - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
+    
+    # Health check for Vue.js application
     - echo "Waiting for Vue.js server to start..."
     - sleep 10  # Wait for Vue to initialize (adjust timing as needed)
     - curl -f http://localhost:$VUE_PORT || (echo "Vue server not running!" && exit 1)
+    - echo "Vue.js server is up and running."
 
-# Backend: Django
 backend:
   stage: backend
   tags:
     - shell
-  before_script:
-    # Ensure Poetry is installed for Python dependencies
-    - echo "Installing Poetry..."
-    - curl -sSL https://install.python-poetry.org | python3 -
-    - export PATH="$HOME/.local/bin:$PATH"  # Ensure Poetry is in PATH
   script:
-    - echo "Setting up Django environment..."
-
-    # Install Python dependencies using Poetry
-    - echo "Installing backend dependencies..."
+    # Install Django dependencies
+    - echo "Installing Django dependencies..."
     - poetry install
-
-    # Start Django server in the background
-    - echo "Starting Django server on localhost:$DJANGO_PORT..."
-    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus localhost:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
-    - echo "Django server started on localhost:$DJANGO_PORT"
-
-    # Optional: Verify if Django app is running (health check)
+    
+    # Start Django server
+    - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
+    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
+    - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
+    
+    # Health check for Django application
     - echo "Waiting for Django server to start..."
     - sleep 10  # Wait for Django to initialize (adjust timing as needed)
     - curl -f http://localhost:$DJANGO_PORT || (echo "Django server not running!" && exit 1)
+    - echo "Django server is up and running."
+
+# Optional: Verify if Vue.js process is running (additional check)
+- echo "Checking if Vue.js process is running..."
+- ps aux | grep "npm run dev" || (echo "Vue.js process not found!" && exit 1)
+
+# Optional: Verify if Django process is running (additional check)
+- echo "Checking if Django process is running..."
+- ps aux | grep "python manage.py runserver" || (echo "Django process not found!" && exit 1)
+
+# Artifacts for debugging if necessary
+artifacts:
+  paths:
+    - vue_log.txt
+    - django_log.txt
+  expire_in: 1 hour
