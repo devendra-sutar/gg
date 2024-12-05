@@ -5,65 +5,29 @@ stages:
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
-  FRONTEND_DIR: "frontend"
-  BACKEND_DIR: "backend"
-  INTERNAL_IP: "0.0.0.0"  # Binding to all network interfaces
+  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
+  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
+  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
 
-# Frontend stage for Vue.js
+# Start Vue server
 frontend:
   stage: frontend
   tags:
     - shell
   script:
-    # Install Node.js dependencies for the frontend
-    - echo "Installing Vue.js dependencies..."
-    - cd $FRONTEND_DIR
-    - npm install
-
-    # Start the Vue server
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - screen -dmS vue bash -c "npm run dev -- --port $VUE_PORT --host $INTERNAL_IP"
+    - cd frontend && screen -dmS vue bash -c "npm install && npm run dev --port $VUE_PORT --host $INTERNAL_IP"
     - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
-    
-    # Health check for Vue.js application
-    - echo "Waiting for Vue.js server to start..."
-    - sleep 10  # Wait for Vue to initialize (adjust timing as needed)
-    - curl -f http://localhost:$VUE_PORT || (echo "Vue server not running!" && exit 1)
-    - echo "Vue.js server is up and running."
+    - code .  # This will open VS Code in the current directory (works on your local machine)
 
-# Backend stage for Django
+# Start Django server
 backend:
   stage: backend
   tags:
     - shell
   script:
-    # Install Python dependencies for Django
-    - echo "Installing Django dependencies..."
-    - cd $BACKEND_DIR
-    - poetry install
-    
-    # Start the Django server
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus $INTERNAL_IP:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
+    - cd backend && screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key"
     - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
-    
-    # Health check for Django application
-    - echo "Waiting for Django server to start..."
-    - sleep 10  # Wait for Django to initialize (adjust timing as needed)
-    - curl -f http://localhost:$DJANGO_PORT || (echo "Django server not running!" && exit 1)
-    - echo "Django server is up and running."
-
-# Optional: Verify if Vue.js process is running (additional check)
-- echo "Checking if Vue.js process is running..."
-- ps aux | grep "npm run dev" || (echo "Vue.js process not found!" && exit 1)
-
-# Optional: Verify if Django process is running (additional check)
-- echo "Checking if Django process is running..."
-- ps aux | grep "python manage.py runserver" || (echo "Django process not found!" && exit 1)
-
-# Artifacts for debugging if necessary
-artifacts:
-  paths:
-    - vue_log.txt
-    - django_log.txt
-  expire_in: 1 hour
+    - curl -i http://$BACKEND_URL
+    - code .  # This will open VS Code in the current directory (works on your local machine)
