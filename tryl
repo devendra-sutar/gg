@@ -5,48 +5,32 @@ stages:
 variables:
   DJANGO_PORT: "8000"
   VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"  # IP for binding the servers
-  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
-  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
+  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
+  FRONTEND_URL: "http://$INTERNAL_IP:$VUE_PORT"
+  BACKEND_URL: "http://$INTERNAL_IP:$DJANGO_PORT"
 
-# Start Vue server
+# Start Vue server (Frontend)
 frontend:
   stage: frontend
   tags:
     - shell
   script:
     - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    # Navigate to the frontend directory, install dependencies and start the Vue app
-    - cd frontend  # Install frontend dependencies
-    - screen -dmS vue bash -c "npm run dev --port $VUE_PORT --host $INTERNAL_IP"  # Start the Vue server in background
+    - cd frontend && npm install && npm run dev --port $VUE_PORT --host $INTERNAL_IP &
     - echo "Vue server started on $INTERNAL_IP:$VUE_PORT"
-    # Wait for the server to be ready and check its availability
-    - echo "Waiting for Vue server to be ready..."
-    - |
-      for i in {1..10}; do
-        curl -s $FRONTEND_URL && echo "Vue server is up!" && exit 0
-        echo "Waiting for Vue server to start... attempt $i"
-        sleep 5
-      done
-    - echo "Vue server not reachable after multiple attempts."
+    - sleep 10  # Wait for the Vue server to fully start
+    - echo "Checking if Vue server is reachable..."
+    - curl -v $FRONTEND_URL || echo "Vue server not reachable"
 
-# Start Django server
+# Start Django server (Backend)
 backend:
   stage: backend
   tags:
     - shell
   script:
     - echo "Starting Django server on $INTERNAL_IP:$DJANGO_PORT..."
-    # Navigate to the backend directory, install dependencies and start the Django app
-    - cd backend   # Install backend dependencies
-    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key"  # Start Django server in background
+    - cd backend && poetry install && python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key &
     - echo "Django server started on $INTERNAL_IP:$DJANGO_PORT"
-    # Wait for the server to be ready and check its availability
-    - echo "Waiting for Django server to be ready..."
-    - |
-      for i in {1..10}; do
-        curl -s $BACKEND_URL && echo "Django server is up!" && exit 0
-        echo "Waiting for Django server to start... attempt $i"
-        sleep 5
-      done
-    - echo "Django server not reachable after multiple attempts."
+    - sleep 10  # Wait for the Django server to fully start
+    - echo "Checking if Django server is reachable..."
+    - curl -v $BACKEND_URL || echo "Django server not reachable"
