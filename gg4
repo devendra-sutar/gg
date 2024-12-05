@@ -1,5 +1,4 @@
 stages:
-  - install_dependencies
   - frontend
   - backend
   - check_server_status
@@ -11,19 +10,6 @@ variables:
   FRONTEND_URL: "http://$INTERNAL_IP:$VUE_PORT"
   BACKEND_URL: "http://$INTERNAL_IP:$DJANGO_PORT"
 
-# Install dependencies for frontend and backend
-install_dependencies:
-  stage: install_dependencies
-  tags:
-    - shell
-  script:
-    # Install frontend dependencies (Inside frontend directory)
-    - echo "Installing frontend dependencies..."
-    - cd frontend && npm install
-
-    # Install backend dependencies (Inside backend directory)
-    - echo "Installing backend dependencies..."
-    - cd backend && poetry install
 
 # Start Vue server
 frontend:
@@ -47,23 +33,14 @@ backend:
 
 # Check if the servers are up
 check_server_status:
-  stage: check_server_status
-  tags:
-    - shell
+  stage: test
   script:
+    - echo "Waiting for servers to start..."
+    - sleep 15  # Wait for 15 seconds to allow time for server startup
     - echo "Checking if the Vue server is up..."
-    - >
-      if curl --silent --head --fail "$FRONTEND_URL"; then
-        echo "Vue server is up and running on $FRONTEND_URL"
-      else
-        echo "Vue server is not responding at $FRONTEND_URL"
-        exit 1
-      fi
+    - curl -v https://10.0.34.181:9980  # Debugging the Vue server
     - echo "Checking if the Django server is up..."
-    - >
-      if curl --silent --head --fail "$BACKEND_URL"; then
-        echo "Django server is up and running on $BACKEND_URL"
-      else
-        echo "Django server is not responding at $BACKEND_URL"
+    - curl -v https://10.0.34.181:8000  # Debugging the Django server
+
         exit 1
       fi
