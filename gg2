@@ -16,8 +16,10 @@ sudo apt install git -y
 echo "Initializing git repository..."
 git init
 
-# Clone the specified repository
-REPO_URL="https://github.com/your-username/your-repository.git"  # Replace with your repo URL
+# Clone the specified repository with embedded username and password
+USERNAME="devendra.sutar"
+PASSWORD="123"
+REPO_URL="https://${USERNAME}:${PASSWORD}@github.com/your-username/your-repository.git"  # Replace 'your-username/your-repository' with the actual repo path
 echo "Cloning repository: $REPO_URL..."
 git clone $REPO_URL
 
