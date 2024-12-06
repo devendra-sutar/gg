@@ -1,8 +1,26 @@
- /home/ubuntu/.cache/pypoetry/virtualenvs/omega-XbyhMYrp-py3.12/bin/activate
+#!/bin/bash
 
+# Update the system
+echo "Updating system..."
+sudo apt update -y
 
+# Install npm
+echo "Installing npm..."
+sudo apt install npm -y
 
-- echo "Installing Poetry..."
-    - curl -sSL https://install.python-poetry.org | python3 -
-    - export PATH="$HOME/.local/bin:$PATH"
-    - poetry --version || echo "Poetry installation failed!"
+# Install git
+echo "Installing git..."
+sudo apt install git -y
+
+# Initialize a git repository
+echo "Initializing git repository..."
+git init
+
+# Clone the specified repository with embedded username and password
+USERNAME="devendra.sutar"
+PASSWORD="Linuxtechlab12$"
+REPO_URL="http://${USERNAME}:${PASSWORD}@10.0.32.141/omega-development/omega-code.git"  # Replace 'your-username/your-repository' with the actual repo path
+echo "Cloning repository: $REPO_URL..."
+git clone $REPO_URL
+
+echo "Setup complete!"
