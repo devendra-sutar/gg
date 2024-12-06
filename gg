@@ -1,41 +1,42 @@
 stages:
-  
   - frontend
   - backend
 
-variables:
-  DJANGO_PORT: "8000"
-  VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
-  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
-  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
-
 frontend:
-  stage: frontend
-  tags:
-    - shell
-  script:
-    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - cd frontend
-   
-    # If Vue is not configured for HTTPS by default, add HTTPS support here (e.g., a custom script or config file).
-    - screen -dmS vue bash -c "npm run dev"
-    - sleep 10  # Wait for server to start
-    - curl -vk $FRONTEND_URL || echo "Vue server not reachable."
-   
+    stage: frontend
+    tags:
+        - shell
+    variables:   
+        SERVER_IP: 10.0.34.181
+        Home: /root
+        
+    script:
+        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
+        - sudo apt update -y
+        - sudo apt install npm -y
+        - cd /home/ubuntu/omega-code/frontend
+        - ls
+        - npm --version
+        - npm run dev
+        - EOF
+
 backend:
-  stage: backend
-  tags:
-    - shell
-  script:
-    - cd backend
-    # - echo "Installing Poetry..."
-    # - curl -sSL https://install.python-poetry.org | python3 -
-    # - export PATH="$HOME/.local/bin:$PATH"
-    # - poetry --version || echo "Poetry installation failed!"
-    # - poetry shell
-   
-    - screen -dmS django bash -c "python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
-    - sleep 10  # Wait for server to start
-    - curl -vk $BACKEND_URL || echo "Django server not reachable."
-    
+    stage:  backend
+    tags:
+        - shell
+    variables:   
+        SERVER_IP: 10.0.34.181
+        Home: /root
+        
+    script:
+        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
+        - cd /home/ubuntu/omega-code
+        - ls
+        - cd backend
+        - poetry shell
+        - python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key
+        - EOF
+
+
+
+
