@@ -13,17 +13,18 @@ frontend:
     script:
         - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
           # Update the system and install npm
-          sudo apt update -y
-          sudo apt install npm -y
+        # - sudo apt update -y
+        # - sudo apt install npm -y
           
           # Navigate to the frontend directory and install npm dependencies
-          cd /home/ubuntu/omega-code/frontend
-          npm install
+        -  cd /home/ubuntu/omega-code/frontend
+       
           
           # Start frontend development server in the background
-          nohup npm run dev > frontend.log 2>&1 &
-          exit
-          EOF
+        -  nohup npm run dev > frontend.log 2>&1 &
+      
+         exit
+        - EOF
 
 backend:
     stage: backend
@@ -36,12 +37,12 @@ backend:
     script:
         - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
           # Navigate to the backend directory
-          cd /home/ubuntu/omega-code/backend
+        - cd /home/ubuntu/omega-code/backend
           
           # Activate the virtual environment using poetry and install dependencies
-          poetry shell
+        -  poetry shell
           
           # Start the backend server in the background
-          nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > backend.log 2>&1 &
+        -  nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > backend.log 2>&1 &
           exit
-          EOF
+        - EOF  
