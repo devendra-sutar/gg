@@ -4,10 +4,12 @@
 echo "Updating system..."
 sudo apt update -y
 
-echo"installing poetry"
+# Install Poetry
+echo "Installing poetry..."
 sudo apt install python3-poetry -y
 
-echo"django"
+# Install Django
+echo "Installing django..."
 sudo apt install python3-django -y
 
 # Install npm
