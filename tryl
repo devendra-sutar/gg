@@ -1,53 +1,32 @@
-stages:
-  - frontend
-  - backend
+#!/bin/bash
 
-variables:
-  DJANGO_PORT: "8000"
-  VUE_PORT: "9980"
-  INTERNAL_IP: "10.0.34.181"  # Replace with your specific IP address
-  FRONTEND_URL: "https://$INTERNAL_IP:$VUE_PORT"
-  BACKEND_URL: "https://$INTERNAL_IP:$DJANGO_PORT"
-  ENV_NAME: "omega"  # Name for the virtual environment
+# Update the system
+echo "Updating system..."
+sudo apt update -y
 
-frontend:
-  stage: frontend
-  tags:
-    - shell
-  script:
-    - echo "Starting Vue server on $INTERNAL_IP:$VUE_PORT..."
-    - cd frontend
-    - screen -dmS vue bash -c "npm run dev"
-    - sleep 10  # Wait for server to start
-    - curl -vk $FRONTEND_URL || echo "Vue server not reachable."
+echo"installing poetry"
+sudo apt install python3-poetry -y
 
-backend:
-  stage: backend
-  tags:
-    - shell
-  script:
-    - echo "Setting up Python environment for backend..."
+echo"django"
+sudo apt install python3-django -y
 
-    # Create a virtual environment for Python using virtualenv
-    - python3 -m venv $ENV_NAME  # Create virtual environment
-    - source $ENV_NAME/bin/activate  # Activate the virtual environment
-    
-    - echo "Installing Poetry in the virtual environment..."
-    - curl -sSL https://install.python-poetry.org | python3 -  # Install Poetry
-    - export PATH="$HOME/.local/bin:$PATH"  # Add Poetry to PATH
-    
-    # Verify Poetry installation
-    - poetry --version || echo "Poetry installation failed!"
+# Install npm
+echo "Installing npm..."
+sudo apt install npm -y
 
-    # Go to the backend folder
-    - cd backend
+# Install git
+echo "Installing git..."
+sudo apt install git -y
 
-    # Install dependencies using Poetry
-    - poetry install
+# Initialize a git repository
+echo "Initializing git repository..."
+git init
 
-    # Start Django server
-    - screen -dmS django bash -c "poetry shell && python manage.py runserver_plus 0.0.0.0:$DJANGO_PORT --cert-file devserver.crt --key-file devserver.key"
-    - sleep 10  # Wait for server to start
+# Clone the specified repository with embedded username and password
+USERNAME="devendra.sutar"
+PASSWORD="Linuxtechlab12$"
+REPO_URL="http://${USERNAME}:${PASSWORD}@10.0.32.141/omega-development/omega-code.git"  # Replace 'your-username/your-repository' with the actual repo path
+echo "Cloning repository: $REPO_URL..."
+git clone $REPO_URL
 
-    # Verify if the backend server is reachable
-    - curl -vk $BACKEND_URL/admin || echo "Django server not reachable."
+echo "Setup complete!"
