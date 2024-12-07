@@ -4,6 +4,15 @@
 echo "Updating system..."
 sudo apt update -y
 
+# Install Poetry
+echo "Installing poetry..."
+sudo apt install python3-poetry -y
+
+# Install Django
+echo "Installing django..."
+sudo apt install python3-django -y
+pip install Werkzeug python-keycloak pyOpenSSL django-extensions
+
 # Install npm
 echo "Installing npm..."
 sudo apt install npm -y
@@ -18,9 +27,13 @@ git init
 
 # Clone the specified repository with embedded username and password
 USERNAME="devendra.sutar"
-PASSWORD="123"
-REPO_URL="https://${USERNAME}:${PASSWORD}@github.com/your-username/your-repository.git"  # Replace 'your-username/your-repository' with the actual repo path
+PASSWORD="Linuxtechlab12$"
+REPO_URL="http://${USERNAME}:${PASSWORD}@10.0.32.141/omega-development/omega-code.git"  # Replace 'your-username/your-repository' with the actual repo path
 echo "Cloning repository: $REPO_URL..."
 git clone $REPO_URL
+
+#poetry install 
+
+source . /home/ubuntu/.cache/pypoetry/virtualenvs/omega-XbyhMYrp-py3.12/bin/activate
 
 echo "Setup complete!"
