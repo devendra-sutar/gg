@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Function to check if a Python package is installed
+is_package_installed() {
+    python3 -c "import $1" &> /dev/null
+    return $?
+}
+
+# Function to check if a system package is installed
+is_system_package_installed() {
+    dpkg -l | grep -q "^ii\s\+$1\s"
+    return $?
+}
+
+# Install python3-pip if not installed
+if ! is_system_package_installed "python3-pip"; then
+    echo "Installing python3-pip..."
+    sudo apt update && sudo apt install python3-pip -y
+else
+    echo "python3-pip is already installed."
+fi
+
+# List of Python packages to install
+PYTHON_PACKAGES=("Werkzeug" "python-keycloak" "pyOpenSSL" "django-extensions")
+
+# Install missing Python packages
+for package in "${PYTHON_PACKAGES[@]}"; do
+    if ! is_package_installed "$package"; then
+        echo "Installing Python package: $package"
+        pip install "$package" --break-system-packages
+    else
+        echo "Python package $package is already installed."
+    fi
+done
+
+echo "Command executed successfully!"
