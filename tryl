@@ -1,34 +1,50 @@
-#!/bin/bash
+!/bin/bash
 
-# Update the system
-echo "Updating system..."
-sudo apt update -y
+# Set up a new user
+echo "Setting up the ubuntu user..."
+useradd -m -s /bin/bash ubuntu
+echo "ubuntu:linux" | chpasswd
 
-# Install Poetry
-echo "Installing poetry..."
-sudo apt install python3-poetry -y
+# Enable SSH password authentication
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd
 
-# Install Django
-echo "Installing django..."
-sudo apt install python3-django -y
+# Get the instance IP
+INSTANCE_IP=$(hostname -I | awk '{print $1}')
+echo "Instance IP is: $INSTANCE_IP"
 
-# Install npm
-echo "Installing npm..."
-sudo apt install npm -y
+# Clone the repository
+git clone http://devendra.sutar:glpat-46ssFt1WJcTyRVnCny@10.0.32.141/omega-development/omega-code.git /home/ubuntu/omega-project
+#git config --global --add safe.directory /home/ubuntu/omega-project
+# Checkout the specific branch
+#sudo chown -R ubuntu:ubuntu /home/ubuntu/omega-project
+cd /home/ubuntu/omega-project
+git config --global --add safe.directory /home/ubuntu/omega-project
+git checkout dev-ubuntu-testing
 
-# Install git
-echo "Installing git..."
-sudo apt install git -y
+# Configure the frontend
+sudo rm -f /home/ubuntu/omega-project/frontend/api-config.js
+cat <<EOF > /home/ubuntu/omega-project/frontend/api-config.js
+export const UI_URL = "https://${INSTANCE_IP}:9980/";
+export const BASE_URL = "https://${INSTANCE_IP}:8000";
+export const KEYCLOAK_URL = "https://10.0.34.141:8443";
+EOF
+cd
+# Install frontend dependencies and start the frontend server
+cd /home/ubuntu/omega-project/frontend
+sudo chown -R ubuntu:ubuntu /home/ubuntu/omega-project/frontend
+sudo rm -rf node_modules
+npm install
+nohup npm run dev > /home/ubuntu/frontend.log 2>&1 & 
 
-# Initialize a git repository
-echo "Initializing git repository..."
-git init
+# Configure the backend
+cd /home/ubuntu/omega-project/backend
+echo OMEGA_IP="${INSTANCE_IP}" >> /home/ubuntu/omega-project/backend/.env
+# Install backend dependencies
+poetry install
+poetry shell
+pip install Werkzeug python-keycloak pyOpenSSL django-extensions --break-system-packages
+poetry add django-extensions
 
-# Clone the specified repository with embedded username and password
-USERNAME="devendra.sutar"
-PASSWORD="Linuxtechlab12$"
-REPO_URL="http://${USERNAME}:${PASSWORD}@10.0.32.141/omega-development/omega-code.git"  # Replace 'your-username/your-repository' with the actual repo path
-echo "Cloning repository: $REPO_URL..."
-git clone $REPO_URL
-
-echo "Setup complete!"
+# Start the backend server
+nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > /home/ubuntu/backend.log 2>&1 & 
