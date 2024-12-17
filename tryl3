@@ -15,7 +15,7 @@ echo "Instance IP is: $INSTANCE_IP"
 
 # Clone the repository
 git clone http://devendra.sutar:glpat-46ssFt1WJcTyRVnCny@10.0.32.141/omega-development/omega-code.git /home/ubuntu/omega-project
-
+git config --global --add safe.directory /home/ubuntu/omega-project
 # Checkout the specific branch
 cd /home/ubuntu/omega-project
 git checkout dev-ubuntu-testing
