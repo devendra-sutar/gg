@@ -1,22 +1,48 @@
 #!/bin/bash
 
-# List of Python packages to check and install
-PYTHON_PACKAGES=("Werkzeug" "python-keycloak" "pyOpenSSL" "django-extensions")
+# Set up a new user
+echo "Setting up the ubuntu user..."
+useradd -m -s /bin/bash ubuntu
+echo "ubuntu:linux" | chpasswd
 
-# Function to check if a Python package is installed
-is_package_installed() {
-    python3 -c "import $1" &> /dev/null
-    return $?
-}
+# Enable SSH password authentication
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd
 
-# Loop through each package and install if missing
-for package in "${PYTHON_PACKAGES[@]}"; do
-    if ! is_package_installed "$package"; then
-        echo "Installing Python package: $package"
-        pip install "$package" --break-system-packages
-    else
-        echo "Python package $package is already installed."
-    fi
-done
+# Get the instance IP
+INSTANCE_IP=$(hostname -I | awk '{print $1}')
+echo "Instance IP is: $INSTANCE_IP"
 
-echo "Command executed successfully!"
+# Clone the repository
+git clone http://devendra.sutar:glpat-46ssFt1WJcTyRVnCny@10.0.32.141/omega-development/omega-code.git /home/ubuntu/omega-project
+
+# Checkout the specific branch
+cd /home/ubuntu/omega-project
+git checkout dev-ubuntu-testing
+
+# Configure the frontend
+sudo rm -f /home/ubuntu/omega-project/frontend/api-config.js
+cat <<EOF > /home/ubuntu/omega-project/frontend/api-config.js
+export const UI_URL = "https://${INSTANCE_IP}:9980/";
+export const BASE_URL = "https://${INSTANCE_IP}:8000";
+export const KEYCLOAK_URL = "https://10.0.34.141:8443";
+EOF
+
+# Install frontend dependencies and start the frontend server
+cd /home/ubuntu/omega-project/frontend
+sudo rm -rf node_modules
+npm install
+nohup npm run dev > /home/ubuntu/frontend.log 2>&1 &
+
+# Configure the backend
+cd /home/ubuntu/omega-project/backend
+echo "OMEGA_IP=${INSTANCE_IP}" >> /home/ubuntu/omega-project/backend/.env
+
+# Install backend dependencies
+poetry install
+poetry shell
+pip install Werkzeug python-keycloak pyOpenSSL django-extensions --break-system-packages
+poetry add django-extensions
+
+# Start the backend server
+nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > /home/ubuntu/backend.log 2>&1 &
