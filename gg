@@ -1,76 +1,95 @@
-resource "cloudstack_instance" "web356" {
-  name = var.intance
-  service_offering = "Basic2-ICX-SPR"
-  template = "testing2"
-  security_group_ids = ["ae8a9497-0f13-48b9-9a0d-9432efb6136d"]
-  #disk_size = "30"
-  zone = "Intel-AZ1"
- # keypair = "bitblast-pub"
-  network_id = "cd9b7a61-b2d1-4a57-8d02-f8e2b7b42163"
-  expunge = true
-  user_data  = "${file("user3.sh")}"
-}
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}
+  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/ankita
+  #SERVER_PASS: linux
+  #VUE_APP_KEYCLOAK_RELM
+cache:
+  key: dev
+  paths:
+    - ${TF_ROOT}/.terraform
 
 
-#!/bin/bash
-#Set up a new user
-echo "Setting up the ubuntu user..."
-useradd -m -s /bin/bash ubuntu
-echo "ubuntu:linux" | chpasswd
-# Enable SSH password authentication
-sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
- 
-INSTANCE_IP=$(hostname -I | awk '{print $1}')
-echo "Instance IP is: $INSTANCE_IP"
-echo "OMEGA_IP=${INSTANCE_IP}" >> /home/ubuntu/omega-code/backend/.env
+before_script:
+  - cd ${TF_ROOT}
+  
+  - terraform init -reconfigure
+# - sudo terraform workspace list
 
-sudo rm -f /home/ubuntu/omega-code/frontend/api-config.js
-cat <<EOF > /home/ubuntu/omega-code/frontend/api-config.js
-export const UI_URL = "https://${INSTANCE_IP}/";
-#export const BASE_URL = "https://${INSTANCE_IP}:8000";
-export const KEYCLOAK_URL = "https://10.0.34.141:8443";
-EOF
+stages:
+- validate
+- plan
+- apply
+# - destroy
 
-sudo rm -rf /etc/nginx/sites-available/default
-cat<<EOF > /etc/nginx/sites-available/default
-server {
-    listen 80;
-    server_name ${INSTANCE_IP};
 
-    # Redirect all HTTP traffic to HTTPS
-    return 301 https://$host$request_uri;
-}
+validate:
+  stage: validate
+  script:
+    # - terraform version
+    
+    - terraform init -reconfigure  
+    - terraform validate
+  # when: manual
+  tags:
+    - shell
+  when: manual
 
-server {
-    listen 443 ssl;
-    server_name ${INSTANCE_IP};  # Replace with your domain or IP
+plan:
+  stage: plan
+  script: 
+    - terraform plan -lock=false -out="planfile" 
+    
+    
+  when: manual
+  dependencies:
+    - validate
+  tags:
+    - shell
+  
+  artifacts:
+    name: plan
+    paths:
+      - planfile
+    reports:
+      terraform: planfile
 
-    root /var/www/html;
+  # when: manual
 
-    ssl_certificate /etc/nginx/ssl/self-signed.crt;
-    ssl_certificate_key /etc/nginx/ssl/self-signed.key;
+apply:
+  stage: apply
+  script:
+    - terraform apply -lock=false "planfile"
+    - terraform output -raw ip1>${TF_ROOT}/ip1.txt 
+    - terraform output -raw ip2>${TF_ROOT}/ip2.txt 
+    # - terraform output -raw ip3>${TF_ROOT}/ip3.txt 
+    # - terraform output -raw ip4>${TF_ROOT}/ip4.txt 
+    
+  dependencies:
+    - plan
+  tags:
+    - shell
+  when: manual
 
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
+  artifacts:
+     name: apply
+     paths:
+      - ${TF_ROOT}/ip1.txt
+      - ${TF_ROOT}/ip2.txt
+      # - ${TF_ROOT}/ip3.txt
+      # - ${TF_ROOT}/ip4.txt
+    # reports:
+    #   terraform:
+    #     - ${TF_ROOT}/ip1.txt
+    #     - ${TF_ROOT}/ip2.txt
+    #     - ${TF_ROOT}/ip3.txt
+    #     - ${TF_ROOT}/ip4.txt
 
-    location /api {
-    proxy_pass https://${INSTANCE_IP}:8000;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    # Optional: SSL configurations
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-}
-EOF
 
-#sudo systemctl restart omega-backend.service
-#sudo systemctl reload nginx
-sudo nginx -t 
-echo "linux" | sudo -S systemctl reload nginx
-sudo systemctl restart omega-backend.service
+
+
+  
+
+       
+
+
 
