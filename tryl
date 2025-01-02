@@ -1,2 +1,4 @@
 - echo "VUE_APP_KEYCLOAK_RELM: ${VUE_APP_KEYCLOAK_RELM}"
   - echo "VUE_APP_KEYCLOAK_CLIENT: ${VUE_APP_KEYCLOAK_CLIENT}"
+- echo "VUE_APP_KEYCLOAK_RELM=${VUE_APP_KEYCLOAK_RELM}" >> /home/ubuntu/omega-code/frontend/.env
+    - echo "VUE_APP_KEYCLOAK_CLIENT=${VUE_APP_KEYCLOAK_CLIENT}" >> /home/ubuntu/omega-code/frontend/.env
