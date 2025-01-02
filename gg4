@@ -1,29 +1,9 @@
-resource "cloudstack_instance" "web2" {
-  name               = var.instance
-  service_offering   = "Medium Instance"
-  template           = "omega-prerequisite-packages"
-  security_group_ids = ["ae8a9497-0f13-48b9-9a0d-9432efb6136d"]
-  zone               = "Intel-AZ1"
-  network_id         = "cd9b7a61-b2d1-4a57-8d02-f8e2b7b42163"
-  expunge            = true
+variable "VUE_APP_KEYCLOAK_RELM"{
+  type = string
+  
+}
 
-  user_data = <<-EOF
-    #!/bin/bash
-    echo "Setting up the ubuntu user..."
-    useradd -m -s /bin/bash ubuntu
-    echo "ubuntu:linux" | chpasswd
-    sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    systemctl restart sshd
-  EOF
-
-  provisioner "remote-exec" {
-    inline = file("user1.sh")
-
-    connection {
-      type     = "ssh"
-      user     = "ubuntu"
-      password = "linux"
-      host     = self.public_ip
-    }
-  }
+variable "VUE_APP_KEYCLOAK_CLIENT"{
+  type = string
+  
 }
