@@ -1,95 +1,40 @@
-variables:
-  TF_ROOT: ${CI_PROJECT_DIR}
-  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/ankita
-  #SERVER_PASS: linux
-  #VUE_APP_KEYCLOAK_RELM
-cache:
-  key: dev
-  paths:
-    - ${TF_ROOT}/.terraform
+resource "cloudstack_instance" "dev1" {
+  // name             = "db-infra"
+  // count = var.instance_count
+  name  = "omega-${var.env}-1"
+  # name  = "\"
+  service_offering = var.compute_offering
+  template         = var.os_image1
+  zone             = "Intel-AZ1"
+  network_id       = "cd9b7a61-b2d1-4a57-8d02-f8e2b7b42163"
+  security_group_ids = ["ae8a9497-0f13-48b9-9a0d-9432efb6136d"]
 
+  # keypair          = "bitblast-pub"
+  # root_disk_size   = var.storage
+  #ip_address     = "192.168.30.70"
+  expunge          = true
+  user_data  = file ("${path.module}/user.sh")
+}
 
-before_script:
-  - cd ${TF_ROOT}
-  
-  - terraform init -reconfigure
-# - sudo terraform workspace list
+#!/bin/bash
+#Set up a new user
+echo "Setting up the ubuntu user..."
+useradd -m -s /bin/bash ubuntu
+echo "ubuntu:linux" | chpasswd
+# Enable SSH password authentication
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart sshd
+ 
+INSTANCE_IP=$(hostname -I | awk '{print $1}')
+echo "Instance IP is: $INSTANCE_IP"
+echo "OMEGA_IP=${INSTANCE_IP}" >> /home/ubuntu/omega-code/backend/.env
 
-stages:
-- validate
-- plan
-- apply
-# - destroy
-
-
-validate:
-  stage: validate
-  script:
-    # - terraform version
-    
-    - terraform init -reconfigure  
-    - terraform validate
-  # when: manual
-  tags:
-    - shell
-  when: manual
-
-plan:
-  stage: plan
-  script: 
-    - terraform plan -lock=false -out="planfile" 
-    
-    
-  when: manual
-  dependencies:
-    - validate
-  tags:
-    - shell
-  
-  artifacts:
-    name: plan
-    paths:
-      - planfile
-    reports:
-      terraform: planfile
-
-  # when: manual
-
-apply:
-  stage: apply
-  script:
-    - terraform apply -lock=false "planfile"
-    - terraform output -raw ip1>${TF_ROOT}/ip1.txt 
-    - terraform output -raw ip2>${TF_ROOT}/ip2.txt 
-    # - terraform output -raw ip3>${TF_ROOT}/ip3.txt 
-    # - terraform output -raw ip4>${TF_ROOT}/ip4.txt 
-    
-  dependencies:
-    - plan
-  tags:
-    - shell
-  when: manual
-
-  artifacts:
-     name: apply
-     paths:
-      - ${TF_ROOT}/ip1.txt
-      - ${TF_ROOT}/ip2.txt
-      # - ${TF_ROOT}/ip3.txt
-      # - ${TF_ROOT}/ip4.txt
-    # reports:
-    #   terraform:
-    #     - ${TF_ROOT}/ip1.txt
-    #     - ${TF_ROOT}/ip2.txt
-    #     - ${TF_ROOT}/ip3.txt
-    #     - ${TF_ROOT}/ip4.txt
-
-
-
-
-  
-
-       
+sudo rm -f /home/ubuntu/omega-code/frontend/api-config.js
+cat <<EOF > /home/ubuntu/omega-code/frontend/api-config.js
+export const UI_URL = "https://${INSTANCE_IP}/";
+#export const BASE_URL = "https://${INSTANCE_IP}:8000";
+export const KEYCLOAK_URL = "https://10.0.34.141:8443";
+EOF
 
 
 
