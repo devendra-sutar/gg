@@ -1,9 +1,9 @@
-variable "VUE_APP_KEYCLOAK_RELM"{
-  type = string
-  
+variable "VUE_APP_KEYCLOAK_RELM" {
+  description = "The Keycloak realm"
+  type        = string
 }
 
-variable "VUE_APP_KEYCLOAK_CLIENT"{
-  type = string
-  
+variable "VUE_APP_KEYCLOAK_CLIENT" {
+  description = "The Keycloak client"
+  type        = string
 }
