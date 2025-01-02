@@ -1,48 +1,106 @@
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}
+  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/ankita
+  #SERVER_PASS: linux
+  #VUE_APP_KEYCLOAK_RELM
+  VUE_APP_KEYCLOAK_RELM: "default_vaule_relm"
+  VUE_APP_KEYCLOAK_CLIENT: :default_client"
+cache:
+  key: dev
+  paths:
+    - ${TF_ROOT}/.terraform
+
+
+before_script:
+  - cd ${TF_ROOT}
+  
+  - terraform init -reconfigure
+# - sudo terraform workspace list
+
 stages:
-  - frontend
-  - backend
+- deploy
+- validate
+- plan
+- apply
+# - destroy
 
-frontend:
-    stage: frontend
-    tags:
-        - shell
-    variables:   
-        SERVER_IP: 10.0.34.181
-        Home: /root
-        
-    script:
-        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
-          # Update the system and install npm
-        # - sudo apt update -y
-        # - sudo apt install npm -y
-          
-          # Navigate to the frontend directory and install npm dependencies
-        -  cd /home/ubuntu/omega-code/frontend
+deploy:
+  stage: deploy
+  script:  |
+      echo "Using VUE_APP_KEYCLOAK_RELM: $VUE_APP_KEYCLOAK_RELM"
+      echo "using VUE_APP_KEYCLOAK_CLIENT: $VUE_APP_KEYCLOAK_CLIENT"
+      bash user.sh "$VUE_APP_KEYCLOAK_RELM"  "$VUE_APP_KEYCLOAK_CLIENT"
+  tags: 
+    - shell
+  when: manual 
+validate:
+  stage: validate
+  script:
+    # - terraform version
+    
+    - terraform init -reconfigure  
+    - terraform validate
+  # when: manual
+  tags:
+    - shell
+  when: manual
+
+plan:
+  stage: plan
+  script: 
+    - terraform plan -lock=false -out="planfile" 
+    
+    
+  when: manual
+  dependencies:
+    - validate
+  tags:
+    - shell
+  
+  artifacts:
+    name: plan
+    paths:
+      - planfile
+    reports:
+      terraform: planfile
+
+  # when: manual
+
+apply:
+  stage: apply
+  script:
+    - terraform apply -lock=false "planfile"
+    - terraform output -raw ip1>${TF_ROOT}/ip1.txt 
+    - terraform output -raw ip2>${TF_ROOT}/ip2.txt 
+    # - terraform output -raw ip3>${TF_ROOT}/ip3.txt 
+    # - terraform output -raw ip4>${TF_ROOT}/ip4.txt 
+    
+  dependencies:
+    - plan
+  tags:
+    - shell
+  when: manual
+
+  artifacts:
+     name: apply
+     paths:
+      - ${TF_ROOT}/ip1.txt
+      - ${TF_ROOT}/ip2.txt
+      # - ${TF_ROOT}/ip3.txt
+      # - ${TF_ROOT}/ip4.txt
+    # reports:
+    #   terraform:
+    #     - ${TF_ROOT}/ip1.txt
+    #     - ${TF_ROOT}/ip2.txt
+    #     - ${TF_ROOT}/ip3.txt
+    #     - ${TF_ROOT}/ip4.txt
+
+
+
+
+  
+
        
-          
-          # Start frontend development server in the background
-        -  nohup npm run dev > frontend.log 2>&1 &
-      
-         exit
-        - EOF
 
-backend:
-    stage: backend
-    tags:
-        - shell
-    variables:   
-        SERVER_IP: 10.0.34.181
-        Home: /root
-        
-    script:
-        - sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP <<EOF
-          # Navigate to the backend directory
-        - cd /home/ubuntu/omega-code/backend
-          
-          # Activate the virtual environment using poetry and install dependencies
-        -  poetry shell
-          
-          # Start the backend server in the background
-        -  nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > backend.log 2>&1 &
-          exit
-        - EOF  
+
+
