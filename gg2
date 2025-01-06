@@ -1,6 +1,41 @@
-echo "VUE_APP_KEYCLOAK_RELM=${VUE_APP_KEYCLOAK_RELM}"
-echo "VUE_APP_KEYCLOAK_CLIENT=${VUE_APP_KEYCLOAK_CLIENT}"
+INSTANCE_NAME: "default-instance"
 
-# Append to the .env file for frontend
-echo "VUE_APP_KEYCLOAK_RELM=${VUE_APP_KEYCLOAK_RELM}" >> /home/ubuntu/omega-code/frontend/.env
-echo "VUE_APP_KEYCLOAK_CLIENT=${VUE_APP_KEYCLOAK_CLIENT}" >> /home/ubuntu/omega-code/frontend/.env
+validate:
+  stage: validate
+  script:
+    # Validate INSTANCE_NAME
+    - |
+      if [[ -z "${INSTANCE_NAME}" ]]; then
+        echo "Error: INSTANCE_NAME is not set!" && exit 1
+      elif [[ ! "${INSTANCE_NAME}" =~ ^[-a-zA-Z0-9]{1,50}$ ]]; then
+        echo "Error: INSTANCE_NAME must be 1-50 characters long and only contain alphanumeric characters and hyphens." && exit 1
+      fi
+      echo "Validation passed for INSTANCE_NAME=${INSTANCE_NAME}"
+    # Validate Terraform configuration
+    - terraform init -reconfigure
+    - terraform validate
+
+- terraform plan -var "instance_name=${INSTANCE_NAME}" -lock=false -out="planfile"
+
+
+- terraform apply -var "instance_name=${INSTANCE_NAME}" -lock=false "planfile"
+
+
+
+variable "instance_name" {
+  description = "Name of the instance"
+  type        = string
+  default     = "default-instance" # Default name if not provided
+  validation {
+    condition     = length(var.instance_name) > 0 && length(var.instance_name) <= 50
+    error_message = "The instance name must be between 1 and 50 characters long."
+  }
+  validation {
+    condition     = regex("^[-a-zA-Z0-9]+$", var.instance_name)
+    error_message = "The instance name can only contain alphanumeric characters and hyphens."
+  }
+}
+
+ tags = {
+    Name = var.instance_name
+  }
