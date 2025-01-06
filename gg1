@@ -3,8 +3,8 @@ variables:
   TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/ankita
   #SERVER_PASS: linux
   #VUE_APP_KEYCLOAK_RELM
-  VUE_APP_KEYCLOAK_RELM: "default_vaule_relm"
-  VUE_APP_KEYCLOAK_CLIENT: :default_client"
+  VUE_APP_KEYCLOAK_RELM: "dev-relm"  # You can set this to whatever value you want or use dynamic values
+  VUE_APP_KEYCLOAK_CLIENT: "dev-client"
 cache:
   key: dev
   paths:
@@ -12,27 +12,19 @@ cache:
 
 
 before_script:
+  # - echo "VUE_APP_KEYCLOAK_RELM: ${VUE_APP_KEYCLOAK_RELM}"
+  # - echo "VUE_APP_KEYCLOAK_CLIENT: ${VUE_APP_KEYCLOAK_CLIENT}"
   - cd ${TF_ROOT}
   
   - terraform init -reconfigure
 # - sudo terraform workspace list
 
 stages:
-- deploy
 - validate
 - plan
 - apply
 # - destroy
 
-deploy:
-  stage: deploy
-  script:  |
-      echo "Using VUE_APP_KEYCLOAK_RELM: $VUE_APP_KEYCLOAK_RELM"
-      echo "using VUE_APP_KEYCLOAK_CLIENT: $VUE_APP_KEYCLOAK_CLIENT"
-      bash user.sh "$VUE_APP_KEYCLOAK_RELM"  "$VUE_APP_KEYCLOAK_CLIENT"
-  tags: 
-    - shell
-  when: manual 
 validate:
   stage: validate
   script:
@@ -69,7 +61,7 @@ plan:
 apply:
   stage: apply
   script:
-    - terraform apply -lock=false "planfile"
+    - terraform apply -lock=false "planfile"  
     - terraform output -raw ip1>${TF_ROOT}/ip1.txt 
     - terraform output -raw ip2>${TF_ROOT}/ip2.txt 
     # - terraform output -raw ip3>${TF_ROOT}/ip3.txt 
