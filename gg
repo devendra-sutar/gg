@@ -1,21 +1,3 @@
-resource "cloudstack_instance" "dev1" {
-  // name             = "db-infra"
-  // count = var.instance_count
-  name  = "omega-${var.env}-1"
-  # name  = "\"
-  service_offering = var.compute_offering
-  template         = var.os_image1
-  zone             = "Intel-AZ1"
-  network_id       = "cd9b7a61-b2d1-4a57-8d02-f8e2b7b42163"
-  security_group_ids = ["ae8a9497-0f13-48b9-9a0d-9432efb6136d"]
-
-  # keypair          = "bitblast-pub"
-  # root_disk_size   = var.storage
-  #ip_address     = "192.168.30.70"
-  expunge          = true
-  user_data  = file ("${path.module}/user.sh")
-}
-
 #!/bin/bash
 #Set up a new user
 echo "Setting up the ubuntu user..."
@@ -24,17 +6,7 @@ echo "ubuntu:linux" | chpasswd
 # Enable SSH password authentication
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 systemctl restart sshd
- 
-INSTANCE_IP=$(hostname -I | awk '{print $1}')
-echo "Instance IP is: $INSTANCE_IP"
-echo "OMEGA_IP=${INSTANCE_IP}" >> /home/ubuntu/omega-code/backend/.env
 
-sudo rm -f /home/ubuntu/omega-code/frontend/api-config.js
-cat <<EOF > /home/ubuntu/omega-code/frontend/api-config.js
-export const UI_URL = "https://${INSTANCE_IP}/";
-#export const BASE_URL = "https://${INSTANCE_IP}:8000";
-export const KEYCLOAK_URL = "https://10.0.34.141:8443";
-EOF
-
-
-
+echo "linux" | sudo -S systemctl start prometheus.service
+sudo /bin/systemctl enable grafana-server
+sudo service grafana-server start
