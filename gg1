@@ -9,8 +9,8 @@ ROOT_URL="https://$DYNAMIC_IP:$PORT"
 sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
 
 # Update or add http_addr and root_url inside the [server] section
-sudo sed -i "/^\[server\]/,/^\[/{s/^http_addr.*/http_addr = $DYNAMIC_IP/;t;/:/!ahttp_addr = $DYNAMIC_IP}
-            /^\[server\]/,/^\[/{s/^root_url.*/root_url = $ROOT_URL/;t;/:/!aroot_url = $ROOT_URL}" "$GRAFANA_CONFIG"
+sudo sed -i -e "/^\[server\]/,/^\[/{s#^http_addr.*#http_addr = $DYNAMIC_IP#;t;:ahttp_addr = $DYNAMIC_IP}" \
+            -e "/^\[server\]/,/^\[/{s#^root_url.*#root_url = $ROOT_URL#;t;:aroot_url = $ROOT_URL}" "$GRAFANA_CONFIG"
 
 # Restart Grafana service to apply changes
 sudo systemctl restart grafana-server.service
