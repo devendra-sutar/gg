@@ -1,98 +1,16 @@
-variables:
-  TF_ROOT: ${CI_PROJECT_DIR}
-  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/ankita
-  #SERVER_PASS: linux
-  #VUE_APP_KEYCLOAK_RELM
-  VUE_APP_KEYCLOAK_RELM: "dev-relm"  # You can set this to whatever value you want or use dynamic values
-  VUE_APP_KEYCLOAK_CLIENT: "dev-client"
-cache:
-  key: dev
-  paths:
-    - ${TF_ROOT}/.terraform
+#!/bin/bash
 
+GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+DYNAMIC_IP=$(hostname -I | awk '{print $1}')
+PORT=3000
+ROOT_URL="https://$DYNAMIC_IP:$PORT"
 
-before_script:
-  # - echo "VUE_APP_KEYCLOAK_RELM: ${VUE_APP_KEYCLOAK_RELM}"
-  # - echo "VUE_APP_KEYCLOAK_CLIENT: ${VUE_APP_KEYCLOAK_CLIENT}"
-  - cd ${TF_ROOT}
-  
-  - terraform init -reconfigure
-# - sudo terraform workspace list
+# Backup the Grafana configuration file
+sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
 
-stages:
-- validate
-- plan
-- apply
-# - destroy
+# Update or add http_addr and root_url inside the [server] section
+sudo sed -i "/^\[server\]/,/^\[/{s/^http_addr.*/http_addr = $DYNAMIC_IP/;t;/:/!ahttp_addr = $DYNAMIC_IP}
+            /^\[server\]/,/^\[/{s/^root_url.*/root_url = $ROOT_URL/;t;/:/!aroot_url = $ROOT_URL}" "$GRAFANA_CONFIG"
 
-validate:
-  stage: validate
-  script:
-    # - terraform version
-    
-    - terraform init -reconfigure  
-    - terraform validate
-  # when: manual
-  tags:
-    - shell
-  when: manual
-
-plan:
-  stage: plan
-  script: 
-    - terraform plan -lock=false -out="planfile" 
-    
-    
-  when: manual
-  dependencies:
-    - validate
-  tags:
-    - shell
-  
-  artifacts:
-    name: plan
-    paths:
-      - planfile
-    reports:
-      terraform: planfile
-
-  # when: manual
-
-apply:
-  stage: apply
-  script:
-    - terraform apply -lock=false "planfile"  
-    - terraform output -raw ip1>${TF_ROOT}/ip1.txt 
-    - terraform output -raw ip2>${TF_ROOT}/ip2.txt 
-    # - terraform output -raw ip3>${TF_ROOT}/ip3.txt 
-    # - terraform output -raw ip4>${TF_ROOT}/ip4.txt 
-    
-  dependencies:
-    - plan
-  tags:
-    - shell
-  when: manual
-
-  artifacts:
-     name: apply
-     paths:
-      - ${TF_ROOT}/ip1.txt
-      - ${TF_ROOT}/ip2.txt
-      # - ${TF_ROOT}/ip3.txt
-      # - ${TF_ROOT}/ip4.txt
-    # reports:
-    #   terraform:
-    #     - ${TF_ROOT}/ip1.txt
-    #     - ${TF_ROOT}/ip2.txt
-    #     - ${TF_ROOT}/ip3.txt
-    #     - ${TF_ROOT}/ip4.txt
-
-
-
-
-  
-
-       
-
-
-
+# Restart Grafana service to apply changes
+sudo systemctl restart grafana-server.service
