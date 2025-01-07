@@ -10,3 +10,23 @@ systemctl restart sshd
 echo "linux" | sudo -S systemctl start prometheus.service
 sudo /bin/systemctl enable grafana-server
 sudo service grafana-server start
+
+GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+DYNAMIC_IP=$(hostname -I | awk '{print $1}')
+PORT=3000
+ROOT_URL="http://$DYNAMIC_IP:$PORT"
+
+# Backup the Grafana configuration file
+sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
+
+# Update http_addr and root_url inside the [server] section
+sudo awk -v ip="$DYNAMIC_IP" -v url="$ROOT_URL" '
+    /^\[server\]/ { in_server = 1 }
+    in_server && /^[[]/ && !/^\[server\]/ { in_server = 0 }
+    in_server && /^http_addr/ { $0 = "http_addr = " ip }
+    in_server && /^root_url/ { $0 = "root_url = " url }
+    { print }
+' "$GRAFANA_CONFIG" | sudo tee "$GRAFANA_CONFIG.tmp" > /dev/null && sudo mv "$GRAFANA_CONFIG.tmp" "$GRAFANA_CONFIG"
+
+# Restart Grafana service to apply changes
+sudo systemctl restart grafana-server.service
