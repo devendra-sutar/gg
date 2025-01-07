@@ -14,7 +14,7 @@ sudo service grafana-server start
 GRAFANA_CONFIG="/etc/grafana/grafana.ini"
 DYNAMIC_IP=$(hostname -I | awk '{print $1}')
 PORT=3000
-ROOT_URL="http://$DYNAMIC_IP:$PORT"
+ROOT_URL="https://$DYNAMIC_IP:$PORT"
 
 # Backup the Grafana configuration file
 sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
