@@ -1,3 +1,29 @@
-sudo apt install python3-pip -y 
-pip install Werkzeug python-keycloak pyOpenSSL django-extensions --break-system-packages
-echo " Command executed succesfully!"
+echo "Generating access token from Keycloak..."
+
+# Make the curl request and capture the full response (including potential errors)
+RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$realmname/protocol/openid-connect/token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=admin" \
+     -d "password=linux" \
+     -d "grant_type=password" \
+     -d "client_id=admin-cli" \
+     -k)
+
+# Check for curl errors first
+if [ $? -ne 0 ]; then
+    echo "Error: curl request failed."
+    exit 1
+fi
+
+# Extract the access token from the response using jq
+ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+
+# Check if the access token is retrieved successfully
+if [ -z "$ACCESS_TOKEN" ]; then
+    echo "Error: Failed to retrieve the access token. Response: $RESPONSE"
+    exit 1
+else
+    echo "Access token retrieved successfully."
+    echo "Access token: $ACCESS_TOKEN" > /home/ubuntu/access_token.txt  # Save the access token to /home/ubuntu/access_token.txt
+    echo "Access token saved to /home/ubuntu/access_token.txt."
+fi
