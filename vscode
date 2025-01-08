@@ -1,13 +1,1 @@
-./key.sh 
-./key.sh: line 22: -e: command not found
-Generating access token from Keycloak...
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   141  100    72  100    69    704    675 --:--:-- --:--:-- --:--:--  1382
-Access token retrieved successfully.
-Access token saved to /home/ubuntu/access_token.txt.
-Creating Keycloak client...
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   338  100    33  100   305   1171  10830 --:--:-- --:--:-- --:--:-- 12071
-Error: Failed to create Keycloak client. Response: {"error":"HTTP 401 Unauthorized"}
+Full Response for Token: {"error":"invalid_grant","error_description":"Invalid user credentials"}
