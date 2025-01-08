@@ -1,4 +1,4 @@
-- echo "VUE_APP_KEYCLOAK_RELM: ${VUE_APP_KEYCLOAK_RELM}"
-  - echo "VUE_APP_KEYCLOAK_CLIENT: ${VUE_APP_KEYCLOAK_CLIENT}"
-- echo "VUE_APP_KEYCLOAK_RELM=${VUE_APP_KEYCLOAK_RELM}" >> /home/ubuntu/omega-code/frontend/.env
-    - echo "VUE_APP_KEYCLOAK_CLIENT=${VUE_APP_KEYCLOAK_CLIENT}" >> /home/ubuntu/omega-code/frontend/.env
+- terraform output -raw ip1>${TF_ROOT}/ip1.txt 
+    - export FRONTEND=$(cat ip1.txt)
+    - echo "FRONTEND:$FRONTEND"
+    - echo "https://$FRONTEND/">>${TF_ROOT}/info.txt
