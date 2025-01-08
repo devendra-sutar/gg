@@ -47,7 +47,8 @@ CREATE_CLIENT_RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/admin/realms/
      -d '{
            "clientId": "'"$CLIENT_ID"'",
            "adminUrl": "'"$grafana_root_url"'",
-           "rootUrl": "'"$grafana_root_url"'",
+           "rootUrl": "'"$grafana_root_url"'",   //omega ip1
+           "redirectUris": ["'"$grafana_root_url"'/*"],   //grafana ip2
            "webOrigins": ["*"],
            "publicClient": true,
            "enabled": true
