@@ -1,10 +1,49 @@
+# Keycloak Token Generation
+KEYCLOAK_HOST="10.0.34.141"
+REALM_NAME="master"  # Use 'gitlab' as the realm name, not 'master'
+CLIENT_ID="admin-cli"
+USERNAME="admin"
+PASSWORD="linux"
+# Step 1: Generate access token from Keycloak using the correct realm
+echo "Generating access token from Keycloak..."
+
+RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$REALM_NAME/protocol/openid-connect/token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=$USERNAME" \
+     -d "password=$PASSWORD" \
+     -d "grant_type=password" \
+     -d "client_id=$CLIENT_ID" \
+     -k | jq -r '.access_token')
+
+# Log the full response to check if there are errors
+echo "Full Response for Token: $RESPONSE"
+
+# Check for curl errors first
+if [ $? -ne 0 ]; then
+    echo "Error: curl request failed."
+    exit 1
+fi
+
+# Extract the access token from the response using jq
+ACCESS_TOKEN=$(echo "$RESPONSE" )
+
+# Check if the access token is retrieved successfully
+if [ -z "$ACCESS_TOKEN" ]; then
+    echo "Error: Failed to retrieve the access token. Response: $RESPONSE"
+    exit 1
+else
+    echo "Access token retrieved successfully."
+    echo "Access token: $ACCESS_TOKEN" > /home/ubuntu/access_token.txt  # Save the access token to /home/ubuntu/access_token.txt
+    echo "Access token saved to /home/ubuntu/access_token.txt."
+fi
+# Keycloak Client Creation
 grafana_root_url="https://$DYNAMIC_IP:$PORT"
 echo "Creating Keycloak client..."
 CREATE_CLIENT_RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/gitlab/clients" \
      -H "Authorization: Bearer $ACCESS_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
-           "clientId": "'"$clientname"'",
+           "client_id": "'"$CLIENT_ID"'",
            "rootUrl": "'"$grafana_root_url"'",
            "adminUrl": "'"$grafana_root_url"'",
            "redirectUris": ["'"$grafana_root_url"'/*"],
