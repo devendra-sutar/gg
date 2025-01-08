@@ -1,31 +1,13 @@
-#!/bin/bash
-
-# Update package list
-echo "Updating package list..."
-sudo apt update
-
-# Install required packages
-echo "Installing software-properties-common, apt-transport-https, and wget..."
-sudo apt install -y software-properties-common apt-transport-https wget
-
-# Download Microsoft GPG key
-echo "Downloading Microsoft GPG key..."
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
-
-# Install the GPG key to the trusted directory
-echo "Installing the Microsoft GPG key..."
-sudo install -o root -g root -m 644 packages.microsoft.gpg /etc/apt/trusted.gpg.d/
-
-# Add the Visual Studio Code repository
-echo "Adding Visual Studio Code repository..."
-sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
-
-# Update package list and install Visual Studio Code
-echo "Updating package list and installing Visual Studio Code..."
-sudo apt update && sudo apt install -y code
-
-# Cleanup
-echo "Cleaning up..."
-rm -f packages.microsoft.gpg
-
-echo "Visual Studio Code installation completed successfully!"
+./key.sh 
+./key.sh: line 22: -e: command not found
+Generating access token from Keycloak...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   141  100    72  100    69    704    675 --:--:-- --:--:-- --:--:--  1382
+Access token retrieved successfully.
+Access token saved to /home/ubuntu/access_token.txt.
+Creating Keycloak client...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   338  100    33  100   305   1171  10830 --:--:-- --:--:-- --:--:-- 12071
+Error: Failed to create Keycloak client. Response: {"error":"HTTP 401 Unauthorized"}
