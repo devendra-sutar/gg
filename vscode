@@ -1,1 +1,6 @@
-curl -k -v -s -w POST "https://10.0.34.141:8443/realms/gitlab/protocol/openid-connect/token"      -H "Content-Type: application/x-www-form-urlencoded"      -d "username=admin"      -d "password=linux"      -d "grant_type=password"      -d "client_id=$CLIENT_ID"    -k
+curl -k -v -X POST "https://10.0.34.141:8443/realms/gitlab/protocol/openid-connect/token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=admin" \
+     -d "password=linux" \
+     -d "grant_type=password" \
+     -d "client_id=gitlab"
