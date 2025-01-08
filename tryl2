@@ -1,6 +1,6 @@
 echo "Generating access token from Keycloak..."
 
-# Make the curl request and capture the full response (including potential errors)
+# Make the curl request and capture the full response
 RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$realmname/protocol/openid-connect/token" \
      -H "Content-Type: application/x-www-form-urlencoded" \
      -d "username=admin" \
@@ -8,6 +8,9 @@ RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$realmname/protocol/
      -d "grant_type=password" \
      -d "client_id=admin-cli" \
      -k)
+
+# Log the full response to check if there are errors
+echo "Full Response: $RESPONSE"
 
 # Check for curl errors first
 if [ $? -ne 0 ]; then
