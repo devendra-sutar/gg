@@ -1,6 +1,26 @@
-curl -k -v -X POST "https://10.0.34.141:8443/realms/gitlab/protocol/openid-connect/token" \
-     -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "username=admin" \
-     -d "password=linux" \
-     -d "grant_type=password" \
-     -d "client_id=gitlab"
+grafana_root_url="https://$DYNAMIC_IP:$PORT"
+echo "Creating Keycloak client..."
+CREATE_CLIENT_RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/admin/master/gitlab/clients" \
+     -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "clientId": "'"$clientname"'",
+           "rootUrl": "'"$grafana_root_url"'",
+           "adminUrl": "'"$grafana_root_url"'",
+           "redirectUris": ["'"$grafana_root_url"'/*"],
+           "webOrigins": ["*"],
+           "publicClient": true,
+           "enabled": true
+         }' \
+     -k)  # This allows insecure SSL verification for self-signed certificates
+
+# Check if client creation was successful
+if [[ "$CREATE_CLIENT_RESPONSE" == *"created"* ]]; then
+    echo "Keycloak client created successfully."
+else
+    echo "Error: Failed to create Keycloak client. Response: $CREATE_CLIENT_RESPONSE"
+    exit 1
+fi
+
+# Final Success Message
+echo "Script executed successfully!"
