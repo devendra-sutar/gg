@@ -1,4 +1,87 @@
-- terraform output -raw ip1>${TF_ROOT}/ip1.txt 
-    - export FRONTEND=$(cat ip1.txt)
-    - echo "FRONTEND:$FRONTEND"
-    - echo "https://$FRONTEND/">>${TF_ROOT}/info.txt
+#!/bin/bash
+
+# Grafana Configuration Setup
+GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+DYNAMIC_IP=$(hostname -I | awk '{print $1}')
+PORT=3000
+ROOT_URL="https://$DYNAMIC_IP:$PORT"
+
+# Backup the Grafana configuration file
+echo "Backing up Grafana configuration file..."
+sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
+if [ $? -eq 0 ]; then
+    echo "Grafana configuration file backup successful."
+else
+    echo "Error: Failed to backup the Grafana configuration file."
+    exit 1
+fi
+
+# Update or add http_addr and root_url inside the [server] section
+echo "Updating Grafana configuration..."
+sudo sed -i -e "/^\[server\]/,/^\[/{s#^http_addr.*#http_addr = $DYNAMIC_IP#;t;:ahttp_addr = $DYNAMIC_IP}" \
+            -e "/^\[server\]/,/^\[/{s#^root_url.*#root_url = $ROOT_URL#;t;:aroot_url = $ROOT_URL}" "$GRAFANA_CONFIG"
+if [ $? -eq 0 ]; then
+    echo "Grafana configuration updated successfully."
+else
+    echo "Error: Failed to update the Grafana configuration."
+    exit 1
+fi
+
+# Restart Grafana service to apply changes
+echo "Restarting Grafana service..."
+sudo systemctl restart grafana-server.service
+if [ $? -eq 0 ]; then
+    echo "Grafana service restarted successfully."
+else
+    echo "Error: Failed to restart Grafana service."
+    exit 1
+fi
+
+# Keycloak Token Generation
+KEYCLOAK_HOST="10.0.34.141"
+realmname="gitlab"  # Updated realmname to "gitlab"
+clientname="grafana-client"
+echo "Generating access token from Keycloak..."
+ACCESS_TOKEN=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$realmname/protocol/openid-connect/token" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=admin" \
+     -d "password=linux" \
+     -d "grant_type=password" \
+     -d "client_id=admin-cli" \
+     -k | jq -r '.access_token')  # Extracting the access token
+
+# Check if the access token is retrieved successfully
+if [ -z "$ACCESS_TOKEN" ]; then
+    echo "Error: Failed to retrieve the access token."
+    exit 1
+else
+    echo "Access token retrieved successfully."
+fi
+
+# Keycloak Client Creation
+grafana_root_url="https://$DYNAMIC_IP:$PORT"
+echo "Creating Keycloak client..."
+CREATE_CLIENT_RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/admin/realms/$realmname/clients" \
+     -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "clientId": "'"$clientname"'",
+           "rootUrl": "'"$grafana_root_url"'",
+           "adminUrl": "'"$grafana_root_url"'",
+           "redirectUris": ["'"$grafana_root_url"'/*"],
+           "webOrigins": ["*"],
+           "publicClient": true,
+           "enabled": true
+         }' \
+     -k)  # This allows insecure SSL verification for self-signed certificates
+
+# Check if client creation was successful
+if [[ "$CREATE_CLIENT_RESPONSE" == *"created"* ]]; then
+    echo "Keycloak client created successfully."
+else
+    echo "Error: Failed to create Keycloak client. Response: $CREATE_CLIENT_RESPONSE"
+    exit 1
+fi
+
+# Final Success Message
+echo "Script executed successfully!"
