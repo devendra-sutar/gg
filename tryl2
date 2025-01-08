@@ -10,7 +10,7 @@ RESPONSE=$(curl -X POST "https://$KEYCLOAK_HOST:8443/realms/$realmname/protocol/
      -k)
 
 # Log the full response to check if there are errors
-echo "Full Response: $RESPONSE"
+echo "Full Response for Token: $RESPONSE"
 
 # Check for curl errors first
 if [ $? -ne 0 ]; then
