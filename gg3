@@ -1,7 +1,10 @@
 sed -i "s|auth_url = https://10.0.34.212:8443/realms/[^/]*|auth_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/auth|g" /etc/grafana/grafana.ini
 env=${env}
 sed -i "s|auth_url = https://10.0.34.212:8443/realms/[^/]*|auth_url = https://10.0.34.212:8443/realms/omega-dev/protocol/openid-connect/auth|g" /etc/grafana/grafana.ini
+
+
 sed -i "s|client_id = [^ ]*|client_id = ${env}|g" /etc/grafana/grafana.ini
+sed -i "s|auth_url = https://10.0.34.212:8443/realms/[^/]*|auth_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/auth|g" /etc/grafana/grafana.ini
 # Ensure the `env` variable is set
 if [ -z "$env" ]; then
   echo "Error: 'env' variable is not set. Please provide a value for 'env'."
