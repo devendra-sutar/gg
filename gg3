@@ -1,5 +1,4 @@
 sed -i "s|auth_url = https://10.0.34.212:8443/realms/[^/]*|auth_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/auth|g" /etc/grafana/grafana.ini
-
 env=${env}
 
 # Ensure the `env` variable is set
