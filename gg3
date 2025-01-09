@@ -1,37 +1,37 @@
-VUE_APP_KEYCLOAK_RELM: "dev-relm"  # You can set this to whatever value you want or use dynamic values
-  VUE_APP_KEYCLOAK_CLIENT: "dev-client"
+#!/bin/bash
 
-- terraform apply -lock=false -var "VUE_APP_KEYCLOAK_RELM=${VUE_APP_KEYCLOAK_RELM}" -var "VUE_APP_KEYCLOAK_CLIENT=${VUE_APP_KEYCLOAK_CLIENT}" -auto-approve
+# Ensure the `env` variable is set
+if [ -z "$env" ]; then
+  echo "Error: 'env' variable is not set. Please provide a value for 'env'."
+  exit 1
+fi
 
+GRAFANA_INI="/etc/grafana/grafana.ini"
 
+# Check if the file exists
+if [ ! -f "$GRAFANA_INI" ]; then
+  echo "Error: Grafana configuration file not found at $GRAFANA_INI."
+  exit 1
+fi
 
+# Update the `[auth.generic_oauth]` section with the provided `env` value
+echo "Updating Grafana configuration with env=$env..."
 
-ubuntu@omega-omega-deve-fb23-1:~/omega-code/frontend$ cat .env 
-# 项目根目录
-VITE_BASE_URL = /
+sed -i "s|auth_url = .*|auth_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/auth|g" "$GRAFANA_INI"
+sed -i "s|token_url = .*|token_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/token|g" "$GRAFANA_INI"
+sed -i "s|api_url = .*|api_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/userinfo|g" "$GRAFANA_INI"
+sed -i "s|client_id = .*|client_id = $env|g" "$GRAFANA_INI"
 
-# 项目名称
-VITE_APP_NAME = OMEGA
+# Display updated values for verification
+echo "Updated values in $GRAFANA_INI:"
+grep -E "auth_url|token_url|api_url|client_id" "$GRAFANA_INI"
 
-# 路由模式 web ｜ hash
-VITE_ROUTE_MODE = web
+echo "Restarting Grafana to apply changes..."
+sudo systemctl restart grafana-server
 
-# 路由加载模式 static ｜ dynamic
-VITE_ROUTE_LOAD_MODE = static
-
-# 设置登陆后跳转地址
-VITE_HOME_PATH = /home
-
-# 本地存储前缀
-VITE_STORAGE_PREFIX =
-
-# 版权信息
-VITE_COPYRIGHT_INFO = Powered by OMEGA Team
-
-# 自动刷新token
-VITE_AUTO_REFRESH_TOKEN = Y
-
-# 默认多语言 enUS | zhCN
-VITE_DEFAULT_LANG = enUS
-VUE_APP_KEYCLOAK_RELM=
-VUE_APP_KEYCLOAK_CLIENT=
+if [ $? -eq 0 ]; then
+  echo "Grafana restarted successfully. Changes applied."
+else
+  echo "Error: Failed to restart Grafana. Please check the service status."
+  exit 1
+fi
