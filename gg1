@@ -1,108 +1,87 @@
 INSTANCE_IP=$(hostname -I | awk '{print $1}')
 
 cat <<EOF > /home/ubuntu/config1.alloy
-prometheus.exporter.self "integrations_alloy" { }
 
-discovery.relabel "integrations_alloy" {
-  targets = prometheus.exporter.self.integrations_alloy.targets
+prometheus.exporter.windows "integration_alloy" {
+  enabled_collectors = ["ad", "cpu", "cs", "logical_disk", "net", "os", "service", "textfile", "time", "diskdrive", "services", "process", "adfs", "cache", "cpu_info", "dfsr", "dhcp", "dns", "fsrmquota", "iis", "logical_disk", "logon", "memory", "msmq", "mssql", "netframework_clrexceptions", "netframework_clrinterop", "netframework_clrjit", "netframework_clrloading", "netframework_clrlocksandthreads", "netframework_clrmemory", "netframework_clrremoting", "netframework_clrsecurity", "net", "remote_fx", "tcp", "vmware"]  
+ }
 
-  rule {
-    target_label = "instance"
-    replacement  = constants.hostname
-  }
-
-  rule {
-    target_label = "alloy_hostname"
-    replacement  = constants.hostname
-  }
-
-  rule {
-    target_label = "job"
-    replacement  = "integrations/alloy-check"
-  }
-}
-
-prometheus.scrape "integrations_alloy" {
-  targets    = discovery.relabel.integrations_alloy.output
-  forward_to = [prometheus.remote_write.local_prom.receiver]  
-
-  scrape_interval = "60s"
+prometheus.scrape "integration_alloy" {
+  scrape_interval = "10s" 
+  job_name = "windows" 
+  targets = prometheus.exporter.windows.integration_alloy.targets
+  forward_to = [prometheus.remote_write.local_prom.receiver,
+  ]
 }
 prometheus.remote_write "local_prom" {
-  endpoint {
-    url = "http://${INSTANCE_IP}:9090/api/v1/write" //define prometheus server endpoint
+    endpoint {
+        url = "http://${INSTANCE_IP}:9090/api/v1/write"
+    }
+}
+
+loki.write "grafana_loki" {
+    endpoint {
+        url = "http://${INSTANCE_IP}:3100/loki/api/v1/push"
+    }
+}
+
+
+loki.source.windowsevent "logs_windows_system" {
+
+  eventlog_name          = "System"
+
+  bookmark_path          = "./bookmarks-sys.xml"
+
+  poll_interval          = "0s"
+
+  use_incoming_timestamp = true
+
+  forward_to             = [loki.write.grafana_loki.receiver]
+
+  labels                 = {
+
+    job      = "integrations/windows_exporter",
 
   }
+
 }
 
-loki.write "local_loki" {
-  endpoint {
-    url = "http://${INSTANCE_IP}:3100/loki/api/v1/push" //define loki server endpoint
+loki.source.windowsevent "logs_windows_application" {
+
+  eventlog_name          = "Application"
+
+  bookmark_path          = "./bookmarks-app.xml"
+
+  poll_interval          = "0s"
+
+  use_incoming_timestamp = true
+
+  forward_to             = [loki.write.grafana_loki.receiver]
+
+  labels                 = {
+
+    job      = "integrations/windows_exporter1",
 
   }
+
 }
 
-prometheus.exporter.unix "integrations_node_exporter" { 
-}
+loki.source.windowsevent "logs_windows_security" {
 
-discovery.relabel "integrations_node_exporter" {
-  targets = prometheus.exporter.unix.integrations_node_exporter.targets
-  rule {
-    target_label = "instance"
-    replacement  = constants.hostname
+  eventlog_name          = "Security"
+
+  bookmark_path          = "./bookmarks-security.xml"
+
+  poll_interval          = "0s"
+
+  use_incoming_timestamp = true
+
+  forward_to             = [loki.write.grafana_loki.receiver]
+
+  labels                 = {
+
+    job      = "integrations/windows_security",
+
   }
 
-  rule {
-    target_label = "job"
-    replacement = "integrations/node_exporter"
-  }
 }
-
-prometheus.scrape "integrations_node_exporter" {
-  targets    = discovery.relabel.integrations_node_exporter.output
-  forward_to = [prometheus.remote_write.local_prom.receiver]
-}
-
-//Collect logs
-loki.source.journal "logs_journal_scrape" {
-  max_age       = "24h0m0s"
-  relabel_rules = discovery.relabel.logs_journal_scrape.rules
-  forward_to    = [loki.write.local_loki.receiver]
-}
-
-local.file_match "logs_direct_scrape" {
-  path_targets = [{
-    __address__ = "localhost",
-    __path__    = "/var/log/{syslog,messages,*.log}",
-    instance    = constants.hostname,
-    job         = "integrations/node_exporter",
-  }]
-}
-discovery.relabel "logs_journal_scrape" {
-  targets = []
-  rule {
-    source_labels = ["__journal__systemd_unit"]
-    target_label  = "unit"
-  }
-
-  rule {
-    source_labels = ["__journal__boot_id"]
-    target_label  = "boot_id"
-  }
-
-  rule {
-    source_labels = ["__journal__transport"]
-    target_label  = "transport"
-  }
-  rule {
-    source_labels = ["__journal_priority_keyword"]
-    target_label  = "level"
-  }
-}
-
-loki.source.file "logs_direct_scrape" {
-  targets    = local.file_match.logs_direct_scrape.targets
-  forward_to = [loki.write.local_loki.receiver]
-}
-
-EOF
