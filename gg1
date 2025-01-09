@@ -1,7 +1,8 @@
-INSTANCE_IP=$(hostname -I | awk '{print $1}')
+# Retrieve the primary IP address of the machine
+$INSTANCE_IP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" }).IPAddress
 
-cat <<EOF > /home/ubuntu/config1.alloy
-
+# Define the configuration content
+$configContent = @"
 prometheus.exporter.windows "integration_alloy" {
   enabled_collectors = ["ad", "cpu", "cs", "logical_disk", "net", "os", "service", "textfile", "time", "diskdrive", "services", "process", "adfs", "cache", "cpu_info", "dfsr", "dhcp", "dns", "fsrmquota", "iis", "logical_disk", "logon", "memory", "msmq", "mssql", "netframework_clrexceptions", "netframework_clrinterop", "netframework_clrjit", "netframework_clrloading", "netframework_clrlocksandthreads", "netframework_clrmemory", "netframework_clrremoting", "netframework_clrsecurity", "net", "remote_fx", "tcp", "vmware"]  
  }
@@ -15,73 +16,60 @@ prometheus.scrape "integration_alloy" {
 }
 prometheus.remote_write "local_prom" {
     endpoint {
-        url = "http://${INSTANCE_IP}:9090/api/v1/write"
+        url = "http://$INSTANCE_IP:9090/api/v1/write"
     }
 }
 
 loki.write "grafana_loki" {
     endpoint {
-        url = "http://${INSTANCE_IP}:3100/loki/api/v1/push"
+        url = "http://$INSTANCE_IP:3100/loki/api/v1/push"
     }
 }
 
-
 loki.source.windowsevent "logs_windows_system" {
-
   eventlog_name          = "System"
-
   bookmark_path          = "./bookmarks-sys.xml"
-
   poll_interval          = "0s"
-
   use_incoming_timestamp = true
-
   forward_to             = [loki.write.grafana_loki.receiver]
-
   labels                 = {
-
     job      = "integrations/windows_exporter",
-
   }
-
 }
 
 loki.source.windowsevent "logs_windows_application" {
-
   eventlog_name          = "Application"
-
   bookmark_path          = "./bookmarks-app.xml"
-
   poll_interval          = "0s"
-
   use_incoming_timestamp = true
-
   forward_to             = [loki.write.grafana_loki.receiver]
-
   labels                 = {
-
     job      = "integrations/windows_exporter1",
-
   }
-
 }
 
 loki.source.windowsevent "logs_windows_security" {
-
   eventlog_name          = "Security"
-
   bookmark_path          = "./bookmarks-security.xml"
-
   poll_interval          = "0s"
-
   use_incoming_timestamp = true
-
   forward_to             = [loki.write.grafana_loki.receiver]
-
   labels                 = {
-
     job      = "integrations/windows_security",
-
   }
-
 }
+"@
+
+# Path to the configuration file
+$configFilePath = "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+
+# Create the target directory if it does not exist
+$targetDirectory = Split-Path -Path $configFilePath
+if (!(Test-Path -Path $targetDirectory)) {
+    New-Item -ItemType Directory -Path $targetDirectory -Force
+}
+
+# Write the configuration content to the file
+Set-Content -Path $configFilePath -Value $configContent
+
+Write-Host "Configuration file created/updated at: $configFilePath"
