@@ -63,13 +63,15 @@ loki.source.windowsevent "logs_windows_security" {
 # Path to the configuration file
 $configFilePath = "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
 
-# Create the target directory if it does not exist
-$targetDirectory = Split-Path -Path $configFilePath
-if (!(Test-Path -Path $targetDirectory)) {
-    New-Item -ItemType Directory -Path $targetDirectory -Force
+# Ensure the file is writable
+if (Test-Path -Path $configFilePath) {
+    # Backup the existing file
+    Copy-Item -Path $configFilePath -Destination "$configFilePath.bak" -Force
+    # Delete the existing file
+    Remove-Item -Path $configFilePath -Force
 }
 
 # Write the configuration content to the file
 Set-Content -Path $configFilePath -Value $configContent
 
-Write-Host "Configuration file created/updated at: $configFilePath"
+Write-Host "Configuration file updated successfully at: $configFilePath"
