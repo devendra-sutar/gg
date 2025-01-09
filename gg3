@@ -1,4 +1,4 @@
-#!/bin/bash
+env=${env}
 
 # Ensure the `env` variable is set
 if [ -z "$env" ]; then
@@ -17,10 +17,10 @@ fi
 # Update the `[auth.generic_oauth]` section with the provided `env` value
 echo "Updating Grafana configuration with env=$env..."
 
-sed -i "s|auth_url = .*|auth_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/auth|g" "$GRAFANA_INI"
-sed -i "s|token_url = .*|token_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/token|g" "$GRAFANA_INI"
-sed -i "s|api_url = .*|api_url = https://10.0.34.212:8443/realms/$env/protocol/openid-connect/userinfo|g" "$GRAFANA_INI"
-sed -i "s|client_id = .*|client_id = $env|g" "$GRAFANA_INI"
+sed -i "s|auth_url = .*|auth_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/auth|g" /etc/grafana/grafana.ini
+sed -i "s|token_url = .*|token_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/token|g" /etc/grafana/grafana.ini
+sed -i "s|api_url = .*|api_url = https://10.0.34.212:8443/realms/${env}/protocol/openid-connect/userinfo|g" /etc/grafana/grafana.ini
+sed -i "s|client_id = .*|client_id = ${env}|g" /etc/grafana/grafana.ini
 
 # Display updated values for verification
 echo "Updated values in $GRAFANA_INI:"
@@ -35,3 +35,9 @@ else
   echo "Error: Failed to restart Grafana. Please check the service status."
   exit 1
 fi
+
+# sudo service grafana-server start
+
+# Restart Grafana service to apply changes
+sudo systemctl restart grafana-server.service
+
