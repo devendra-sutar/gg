@@ -28,5 +28,45 @@ sudo awk -v ip="$DYNAMIC_IP" -v url="$ROOT_URL" '
     { print }
 ' "$GRAFANA_CONFIG" | sudo tee "$GRAFANA_CONFIG.tmp" > /dev/null && sudo mv "$GRAFANA_CONFIG.tmp" "$GRAFANA_CONFIG"
 
+
+#!/bin/bash
+
+# Accept environment variable input
+env=${env}
+if [[ -z "$env" ]]; then
+  echo "Error: 'env' variable is not set. Please provide a value for 'env'."
+  exit 1
+fi
+
+# Define the path to the Grafana configuration file
+#GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+
+# Check if the file exists
+if [[ ! -f "$GRAFANA_CONFIG" ]]; then
+  echo "Error: Grafana configuration file not found at $GRAFANA_CONFIG."
+  exit 1
+fi
+
+# Backup the existing configuration file
+echo "Backing up Grafana configuration file..."
+cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.bak"
+
+# Update the realm in the URLs and the client_id using the 'env' value
+echo "Updating Grafana configuration for realm and client_id: $env..."
+
+sed -i -E "
+  s|(auth_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/auth)|\1${env}\2|;
+  s|(token_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/token)|\1${env}\2|;
+  s|(api_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/userinfo)|\1${env}\2|;
+  s|(client_id\s*=\s*)omega|\1${env}|;
+" "$GRAFANA_CONFIG"
+
+# Restart Grafana to apply changes
+echo "Restarting Grafana service..."
+systemctl restart grafana-server
+
+# Completion message
+echo "Grafana configuration updated successfully for realm and client_id: $env."
+
 # Restart Grafana service to apply changes
 sudo systemctl restart grafana-server.service
