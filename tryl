@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Check if the operating system is Ubuntu
-if [ "$(lsb_release -si)" == "Ubuntu" ]; then
+# Check if the operating system is Ubuntu by reading /etc/os-release
+if grep -iq "ubuntu" /etc/os-release; then
   # Go to the frontend directory
-  cd /home/ubuntu/omega-code/frontend
+  cd /home/ubuntu/omega-code/frontend || exit 1
 
-  # Run npm build
+  # Run npm build in the background and log output
   nohup npm run build > build.log 2>&1 &
 else
   echo "This script only works on Ubuntu."
