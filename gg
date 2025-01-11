@@ -5,6 +5,11 @@
 
 
 #!/bin/bash
+: "${LGTM:?Error: LGTM variable is not set!}"
+
+# Debug: Print the value of LGTM
+echo "LGTM is set to: $LGTM"
+
 INSTANCE_IP=$(hostname -I | awk '{print $1}')
 echo  "$LGTM"
 
