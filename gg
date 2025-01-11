@@ -1,72 +1,59 @@
 #!/bin/bash
-#Set up a new user
-echo "Setting up the ubuntu user..."
-useradd -m -s /bin/bash ubuntu
-echo "ubuntu:linux" | chpasswd
-# Enable SSH password authentication
-sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
-
-echo "linux" | sudo -S systemctl start prometheus.service
-sudo /bin/systemctl enable grafana-server
-sudo service grafana-server start
-
-GRAFANA_CONFIG="/etc/grafana/grafana.ini"
-DYNAMIC_IP=$(hostname -I | awk '{print $1}')
-PORT=3000
-ROOT_URL="https://$DYNAMIC_IP:$PORT"
-
-# Backup the Grafana configuration file
-sudo cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.backup.$(date +%F-%T)"
-
-# Update http_addr and root_url inside the [server] section
-sudo awk -v ip="$DYNAMIC_IP" -v url="$ROOT_URL" '
-    /^\[server\]/ { in_server = 1 }
-    in_server && /^[[]/ && !/^\[server\]/ { in_server = 0 }
-    in_server && /^http_addr/ { $0 = "http_addr = " ip }
-    in_server && /^root_url/ { $0 = "root_url = " url }
-    { print }
-' "$GRAFANA_CONFIG" | sudo tee "$GRAFANA_CONFIG.tmp" > /dev/null && sudo mv "$GRAFANA_CONFIG.tmp" "$GRAFANA_CONFIG"
+INSTANCE_IP=$(hostname -I | awk '{print $1}')
+echo  "$LGTM"
 
 
-#!/bin/bash
 
-# Accept environment variable input
-env=${env}
-if [[ -z "$env" ]]; then
-  echo "Error: 'env' variable is not set. Please provide a value for 'env'."
-  exit 1
-fi
+cat<<EOF > /etc/nginx/sites-available/default
+server {
+    listen 80;
+    server_name ${INSTANCE_IP};
+ 
+    # Redirect all HTTP traffic to HTTPS
+    return 301 https://$host$request_uri;
+}
+ 
+server {
+    listen 443 ssl;
+    server_name ${INSTANCE_IP};  # Replace with your domain or IP
+ 
+    root /var/www/html;
+ 
+    ssl_certificate /etc/nginx/ssl/self-signed.crt;
+    ssl_certificate_key /etc/nginx/ssl/self-signed.key;
+ 
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+ 
+    location /api {
+    proxy_pass https://${INSTANCE_IP}:8000;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
 
-# Define the path to the Grafana configuration file
-#GRAFANA_CONFIG="/etc/grafana/grafana.ini"
+    }
+    location /grafana-monitoring/ {
+    proxy_pass https://${LGTM}:3000;
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+    }
 
-# Check if the file exists
-if [[ ! -f "$GRAFANA_CONFIG" ]]; then
-  echo "Error: Grafana configuration file not found at $GRAFANA_CONFIG."
-  exit 1
-fi
+    # Optional: SSL configurations
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+}
+EOF
 
-# Backup the existing configuration file
-echo "Backing up Grafana configuration file..."
-cp "$GRAFANA_CONFIG" "${GRAFANA_CONFIG}.bak"
-
-# Update the realm in the URLs and the client_id using the 'env' value
-echo "Updating Grafana configuration for realm and client_id: $env..."
-
-sed -i -E "
-  s|(auth_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/auth)|\1${env}\2|;
-  s|(token_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/token)|\1${env}\2|;
-  s|(api_url\s*=\s*https://[^/]+/realms/)[^/]+(/protocol/openid-connect/userinfo)|\1${env}\2|;
-  s|(client_id\s*=\s*)omega|\1${env}|;
-" "$GRAFANA_CONFIG"
-
-# Restart Grafana to apply changes
-echo "Restarting Grafana service..."
-systemctl restart grafana-server
-
-# Completion message
-echo "Grafana configuration updated successfully for realm and client_id: $env."
-
-# Restart Grafana service to apply changes
-sudo systemctl restart grafana-server.service
+sudo apt update
+sudo apt install npm -y
+cd /home/ubuntu/omega-code/frontend && npm run build
+cd /home/ubuntu/omega-code/frontend && sudo cp -rf dist/*  /var/www/html/ 
+#sudo systemctl restart omega-backend.service
+#sudo systemctl reload nginx
+cd /home/ubuntu/omega-code/frontend && sudo nginx -t 
+cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload nginx
+cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service
