@@ -1,3 +1,5 @@
+3a1f0911-1438-46b9-b251-b7167b75f0dd
+
 
  terraform output -raw ip2>${TF_ROOT}/ip2.txt 
     - LGTM=$(cat "${TF_ROOT}/ip2.txt")
