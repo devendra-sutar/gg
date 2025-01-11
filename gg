@@ -1,3 +1,9 @@
+
+ terraform output -raw ip2>${TF_ROOT}/ip2.txt 
+    - LGTM=$(cat "${TF_ROOT}/ip2.txt")
+
+
+
 #!/bin/bash
 INSTANCE_IP=$(hostname -I | awk '{print $1}')
 echo  "$LGTM"
