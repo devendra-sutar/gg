@@ -2,6 +2,7 @@
  terraform output -raw ip2>${TF_ROOT}/ip2.txt 
     - LGTM=$(cat "${TF_ROOT}/ip2.txt")
 
+- sshpass -p "linux" ssh -o StrictHostKeyChecking=no -t ubuntu@${FRONTEND}<sample.sh
 
 
 #!/bin/bash
