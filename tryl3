@@ -27,6 +27,8 @@ After=network.target
 ExecStart=/usr/bin/alloy
 Restart=always
 User=root
+TimeoutStartSec=60s  # Wait up to 60 seconds for startup
+
 
 [Install]
 WantedBy=multi-user.target
