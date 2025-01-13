@@ -1,48 +1,72 @@
 #!/bin/bash
 
-# Set up a new user
-echo "Setting up the ubuntu user..."
-useradd -m -s /bin/bash ubuntu
-echo "ubuntu:linux" | chpasswd
+# Exit on any error
+set -e
 
-# Enable SSH password authentication
-sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
+# Variables
+ALLOY_VERSION="6.0.1" # Update to the latest version if necessary
+ALLOY_JAR="alloy-$ALLOY_VERSION.jar"
+ALLOY_URL="https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v$ALLOY_VERSION/$ALLOY_JAR"
+INSTALL_DIR="/opt/alloy"
+CONFIG_DIR="/etc/alloy"
+CONFIG_FILE="$CONFIG_DIR/config.alloy"
 
-# Get the instance IP
-INSTANCE_IP=$(hostname -I | awk '{print $1}')
-echo "Instance IP is: $INSTANCE_IP"
+# Update and install prerequisites
+echo "Updating system and installing prerequisites..."
+sudo apt update && sudo apt install -y wget openjdk-17-jdk
 
-# Clone the repository
-git clone http://devendra.sutar:glpat-46ssFt1WJcTyRVnCny@10.0.32.141/omega-development/omega-code.git /home/ubuntu/omega-project
-git config --global --add safe.directory /home/ubuntu/omega-project
-# Checkout the specific branch
-cd /home/ubuntu/omega-project
-git checkout dev-ubuntu-testing
+# Verify Java installation
+echo "Verifying Java installation..."
+java -version || { echo "Java installation failed!"; exit 1; }
 
-# Configure the frontend
-sudo rm -f /home/ubuntu/omega-project/frontend/api-config.js
-cat <<EOF > /home/ubuntu/omega-project/frontend/api-config.js
-export const UI_URL = "https://${INSTANCE_IP}:9980/";
-export const BASE_URL = "https://${INSTANCE_IP}:8000";
-export const KEYCLOAK_URL = "https://10.0.34.141:8443";
-EOF
+# Create installation directory
+echo "Creating installation directory at $INSTALL_DIR..."
+sudo mkdir -p $INSTALL_DIR
 
-# Install frontend dependencies and start the frontend server
-cd /home/ubuntu/omega-project/frontend
-sudo rm -rf node_modules
-npm install
-nohup npm run dev > /home/ubuntu/frontend.log 2>&1 &
+# Download Alloy JAR
+echo "Downloading Alloy $ALLOY_VERSION..."
+sudo wget -O $INSTALL_DIR/$ALLOY_JAR $ALLOY_URL
 
-# Configure the backend
-cd /home/ubuntu/omega-project/backend
-echo "OMEGA_IP=${INSTANCE_IP}" >> /home/ubuntu/omega-project/backend/.env
+# Set permissions
+echo "Setting permissions for $INSTALL_DIR..."
+sudo chmod -R 755 $INSTALL_DIR
 
-# Install backend dependencies
-poetry install
-poetry shell
-pip install Werkzeug python-keycloak pyOpenSSL django-extensions --break-system-packages
-poetry add django-extensions
+# Create configuration directory and file
+echo "Setting up configuration file at $CONFIG_FILE..."
+sudo mkdir -p $CONFIG_DIR
+sudo bash -c "cat > $CONFIG_FILE <<EOL
+# Configuration file for Alloy
+# This file can be used to store custom settings or references
+# Example: Java options, model paths, or solver settings
 
-# Start the backend server
-nohup poetry run python manage.py runserver_plus 0.0.0.0:8000 --cert-file devserver.crt --key-file devserver.key > /home/ubuntu/backend.log 2>&1 &
+# Specify maximum heap size for Java
+JAVA_OPTS='-Xmx2G'
+
+# Path to additional models (if any)
+MODEL_PATH='/opt/alloy/models'
+
+EOL"
+
+sudo chmod 644 $CONFIG_FILE
+
+# Create a wrapper script for Alloy
+echo "Creating wrapper script for Alloy..."
+WRAPPER_SCRIPT="/usr/local/bin/alloy"
+sudo bash -c "cat > $WRAPPER_SCRIPT <<EOL
+#!/bin/bash
+# Wrapper script for running Alloy with configuration
+
+# Load custom configurations
+source $CONFIG_FILE
+
+# Run Alloy with the specified options
+java \$JAVA_OPTS -jar $INSTALL_DIR/$ALLOY_JAR "\$@"
+EOL"
+
+sudo chmod +x $WRAPPER_SCRIPT
+
+# Verify installation
+echo "Verifying Alloy installation..."
+alloy --help || { echo "Alloy installation failed!"; exit 1; }
+
+echo "Alloy $ALLOY_VERSION installed successfully with configuration at $CONFIG_FILE!"
