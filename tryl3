@@ -17,29 +17,29 @@ echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stab
 sudo apt-get update -y
 sudo apt-get install alloy -y
 
+sudo mkdir -p /etc/alloy
+sudo chmod 0755 /etc/alloy
+
+sudo apt-get install -y acl
+sudo setfacl -dR -m u:alloy:r /var/log/
 # Create the Alloy service file
-cat << EOF | sudo tee /etc/systemd/system/alloy.service > /dev/null
-[Unit]
-Description=Alloy Service
-After=network.target
+#cat << EOF | sudo tee /etc/systemd/system/alloy.service > /dev/null
+#[Unit]
+#Description=Alloy Service
+#After=network.target
 
-[Service]
-ExecStart=/usr/bin/alloy
-Restart=always
-User=root
-TimeoutStartSec=60s  # Wait up to 60 seconds for startup
+#[Service]
+#ExecStart=/usr/bin/alloy
+#Restart=always
+#User=root
+#TimeoutStartSec=60s  # Wait up to 60 seconds for startup
 
 
-[Install]
-WantedBy=multi-user.target
-EOF
+#[Install]
+#WantedBy=multi-user.target
+#EOF
 
 # Set the correct permissions for the config.alloy file
-sudo chmod 644 /etc/alloy/config.alloy || echo "Failed to set permissions on config.alloy"
-
-# Remove any old config file if it exists
-sudo rm -f /etc/alloy/config.alloy
-
 # Create the new configuration for Alloy
 sudo bash -c 'cat <<EOF > /etc/alloy/config.alloy
 prometheus.remote_write "local_prom" { 
@@ -83,7 +83,7 @@ prometheus.scrape "scraper" {
 
 prometheus.remote_write "demo" { 
     endpoint { 
-        url = "http://prometheus:9090/api/v1/write" 
+        url = "http://10.0.34.144:9090/api/v1/write" 
     } 
 } 
 
@@ -119,14 +119,28 @@ loki.write "local" {
     } 
 }
 EOF'
+cat << EOF | sudo tee /etc/systemd/system/alloy.service > /dev/null
+[Unit]
+Description=Alloy Service
+After=network.target
 
-# Check if the config file exists and set the correct permissions
-if [ -f /etc/alloy/config.alloy ]; then
-    sudo chmod 644 /etc/alloy/config.alloy
-else
-    echo "Config file /etc/alloy/config.alloy not found after creation."
-fi
+[Service]
+ExecStart=/usr/bin/alloy
+Restart=always
+User=root
+TimeoutStartSec=60s  # Wait up to 60 seconds for startup
 
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable alloy
+sudo systemctl start alloy
+
+log "Alloy service status:"
+sudo systemctl status alloy
 # Start the Alloy service
 sudo systemctl daemon-reload
 sudo systemctl start alloy.service
