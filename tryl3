@@ -1,72 +1,113 @@
 #!/bin/bash
 
-# Exit on any error
-set -e
+sudo apt update -y 
+sudo apt install gpg -y
+sudo mkdir -p /etc/apt/keyrings/
+wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+sudo apt-get update -y 
+sudo apt-get install alloy -y 
 
-# Variables
-ALLOY_VERSION="6.0.1" # Update to the latest version if necessary
-ALLOY_JAR="alloy-$ALLOY_VERSION.jar"
-ALLOY_URL="https://github.com/AlloyTools/org.alloytools.alloy/releases/download/v$ALLOY_VERSION/$ALLOY_JAR"
-INSTALL_DIR="/opt/alloy"
-CONFIG_DIR="/etc/alloy"
-CONFIG_FILE="$CONFIG_DIR/config.alloy"
+cat << EOF | sudo tee /etc/systemd/system/alloy.service > /dev/null
+[Unit]
+Description=Alloy Service
+After=network.target
 
-# Update and install prerequisites
-echo "Updating system and installing prerequisites..."
-sudo apt update && sudo apt install -y wget openjdk-17-jdk
+[Service]
+ExecStart=/usr/bin/alloy
+Restart=always
+user=root
 
-# Verify Java installation
-echo "Verifying Java installation..."
-java -version || { echo "Java installation failed!"; exit 1; }
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# Create installation directory
-echo "Creating installation directory at $INSTALL_DIR..."
-sudo mkdir -p $INSTALL_DIR
+#sudo usermod -a -G docker alloy 
+#sudo systemctl daemon-reload 
+#sudo systemctl restart alloy.service 
+sudo chmod 644 /etc/alloy/config.alloy
+sudo rm /etc/alloy/config.alloy
+sudo chmod +x /etc/alloy/config.alloy
+sudo bash -c  'cat <<EOF >>  /etc/alloy/config.alloy
+prometheus.remote_write "local_prom" { 
+    endpoint { 
+        url = "http://10.0.34.144:9090/api/v1/write" // define prometheus server endpoint 
+    } 
+} 
 
-# Download Alloy JAR
-echo "Downloading Alloy $ALLOY_VERSION..."
-sudo wget -O $INSTALL_DIR/$ALLOY_JAR $ALLOY_URL
+prometheus.exporter.unix "integrations_node_exporter" { 
+} 
 
-# Set permissions
-echo "Setting permissions for $INSTALL_DIR..."
-sudo chmod -R 755 $INSTALL_DIR
+discovery.relabel "integrations_node_exporter" { 
+    targets = prometheus.exporter.unix.integrations_node_exporter.targets 
 
-# Create configuration directory and file
-echo "Setting up configuration file at $CONFIG_FILE..."
-sudo mkdir -p $CONFIG_DIR
-sudo bash -c "cat > $CONFIG_FILE <<EOL
-# Configuration file for Alloy
-# This file can be used to store custom settings or references
-# Example: Java options, model paths, or solver settings
+    rule { 
+        target_label = "instance" 
+        replacement  = constants.hostname 
+    } 
 
-# Specify maximum heap size for Java
-JAVA_OPTS='-Xmx2G'
+    rule { 
+        target_label = "job" 
+        replacement = "integrations/cadvisor" 
+    } 
+} 
 
-# Path to additional models (if any)
-MODEL_PATH='/opt/alloy/models'
+prometheus.scrape "integrations_node_exporter" { 
+    targets = discovery.relabel.integrations_node_exporter.output 
+    forward_to = [prometheus.remote_write.local_prom.receiver] 
+} 
 
-EOL"
+prometheus.exporter.cadvisor "example" { 
+    docker_host = "unix:///var/run/docker.sock" 
+    storage_duration = "5m" 
+} 
 
-sudo chmod 644 $CONFIG_FILE
+prometheus.scrape "scraper" { 
+    targets    = prometheus.exporter.cadvisor.example.targets 
+    forward_to = [prometheus.remote_write.demo.receiver] 
+    scrape_interval = "10s" 
+} 
 
-# Create a wrapper script for Alloy
-echo "Creating wrapper script for Alloy..."
-WRAPPER_SCRIPT="/usr/local/bin/alloy"
-sudo bash -c "cat > $WRAPPER_SCRIPT <<EOL
-#!/bin/bash
-# Wrapper script for running Alloy with configuration
+prometheus.remote_write "demo" { 
+    endpoint { 
+        url = "http://prometheus:9090/api/v1/write" 
+    } 
+} 
 
-# Load custom configurations
-source $CONFIG_FILE
+// ############################### 
+// #### Logging Configuration #### 
+// ############################### 
 
-# Run Alloy with the specified options
-java \$JAVA_OPTS -jar $INSTALL_DIR/$ALLOY_JAR "\$@"
-EOL"
+discovery.docker "linux" { 
+    host = "unix:///var/run/docker.sock" 
+} 
 
-sudo chmod +x $WRAPPER_SCRIPT
+discovery.relabel "logs_integrations_docker" { 
+    targets = [] 
 
-# Verify installation
-echo "Verifying Alloy installation..."
-alloy --help || { echo "Alloy installation failed!"; exit 1; }
+    rule { 
+        source_labels = ["__meta_docker_container_name"] 
+        regex = "/(.*)" 
+        target_label = "service_name" 
+    } 
+} 
 
-echo "Alloy $ALLOY_VERSION installed successfully with configuration at $CONFIG_FILE!"
+loki.source.docker "default" { 
+    host       = "unix:///var/run/docker.sock" 
+    targets    = discovery.docker.linux.targets 
+    labels     = {"platform" = "docker"} 
+    relabel_rules = discovery.relabel.logs_integrations_docker.rules 
+    forward_to = [loki.write.local.receiver] 
+} 
+
+loki.write "local" { 
+    endpoint { 
+        url = "http://10.0.34.147:3100/loki/api/v1/push" 
+    } 
+}
+EOF'
+
+sudo service alloy start
+sudo usermod -aG docker alloy 
+sudo systemctl daemon-reload 
+sudo systemctl restart alloy.service 
