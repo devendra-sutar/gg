@@ -1,13 +1,23 @@
 #!/bin/bash
 
-sudo apt update -y 
-sudo apt install gpg -y
-sudo mkdir -p /etc/apt/keyrings/
-wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
-echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
-sudo apt-get update -y 
-sudo apt-get install alloy -y 
+# Update and install required packages
+sudo apt update -y
+sudo apt install gpg wget -y
 
+# Create keyrings directory for Grafana GPG key
+sudo mkdir -p /etc/apt/keyrings/
+
+# Download and add the Grafana GPG key
+wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+
+# Add Grafana repository to APT sources list
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+
+# Update package lists again and install Alloy
+sudo apt-get update -y
+sudo apt-get install alloy -y
+
+# Create the Alloy service file
 cat << EOF | sudo tee /etc/systemd/system/alloy.service > /dev/null
 [Unit]
 Description=Alloy Service
@@ -16,19 +26,20 @@ After=network.target
 [Service]
 ExecStart=/usr/bin/alloy
 Restart=always
-user=root
+User=root
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-#sudo usermod -a -G docker alloy 
-#sudo systemctl daemon-reload 
-#sudo systemctl restart alloy.service 
+# Set the correct permissions for the config.alloy file
 sudo chmod 644 /etc/alloy/config.alloy
-sudo rm /etc/alloy/config.alloy
-sudo chmod +x /etc/alloy/config.alloy
-sudo bash -c  'cat <<EOF >>  /etc/alloy/config.alloy
+
+# Remove any old config file if it exists
+sudo rm -f /etc/alloy/config.alloy
+
+# Create the new configuration for Alloy
+sudo bash -c 'cat <<EOF > /etc/alloy/config.alloy
 prometheus.remote_write "local_prom" { 
     endpoint { 
         url = "http://10.0.34.144:9090/api/v1/write" // define prometheus server endpoint 
@@ -107,7 +118,14 @@ loki.write "local" {
 }
 EOF'
 
-sudo service alloy start
-sudo usermod -aG docker alloy 
-sudo systemctl daemon-reload 
-sudo systemctl restart alloy.service 
+# Start the Alloy service
+sudo systemctl daemon-reload
+sudo systemctl start alloy.service
+
+# Add user to the docker group (optional)
+sudo usermod -aG docker alloy
+
+# Restart the Alloy service to apply changes
+sudo systemctl restart alloy.service
+
+echo "Alloy setup completed successfully!"
