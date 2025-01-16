@@ -3,7 +3,7 @@ resource "null_resource" "web357_provision" {
   connection {
     type     = "ssh"
     user     = "ubuntu"
-    password = "linux"  # Replace with actual password or key for SSH
+    password = "linux"  # Replace with the actual password or key for SSH
     host     = cloudstack_instance.machine1.ip_address  # Reference the public IP of the instance
   }
   
