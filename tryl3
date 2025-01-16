@@ -26,3 +26,8 @@ resource "null_resource" "web357_provision" {
     cloudstack_instance.machine2
   ]
 }
+
+echo "LGTM=$(cat \"${TF_ROOT}/ip2.txt\")" >> sample.sh
+    - chmod +x sample.sh
+    - sleep 50
+    - sshpass -p "linux" ssh -o StrictHostKeyChecking=no -t ubuntu@${FRONTEND} < sample.sh
