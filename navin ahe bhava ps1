@@ -1,0 +1,180 @@
+# Step 0: Define Parameters
+param (
+    [string]$KeycloakId,
+    [string]$AgentName,
+    [string]$IPAddress
+)
+
+# Validate Input Parameters
+if (-not $KeycloakId -or -not $AgentName) {
+    Write-Host "Usage: .\sample.ps1 -KeycloakId <keycloak_id> -AgentName <agent_name>"
+    exit
+}
+
+# Step 1: Check PowerShell Version
+$psVersion = $PSVersionTable.PSVersion
+Write-Host "PowerShell Version: $($psVersion.Major).$($psVersion.Minor).$($psVersion.Patch)"
+
+if ($psVersion.Major -eq 5 -and $psVersion.Minor -eq 1) {
+    Write-Host "You are running Windows PowerShell 5.1, which is compatible with the UIAutomation module."
+} else {
+    Write-Host "You're running PowerShell $($psVersion.Major).$($psVersion.Minor).$($psVersion.Patch). The UIAutomation module requires Windows PowerShell 5.1."
+    exit
+}
+
+# Step 2: Retrieve the Host IP Address
+Write-Host "Retrieving the Host IP address..."
+try {
+    $hostIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Ethernet*").IPAddress
+    Write-Host "Host IP Address: $hostIP"
+} catch {
+    Write-Host "Error retrieving Host IP Address: $_"
+    exit
+}
+
+# Step 3: Define the Alloy Port
+$alloyPort = 8080
+Write-Host "Alloy Port set to: $alloyPort"
+
+# Step 4: Set URLs for Configuration and API
+$apiEndpoint = "https://${IPAddress}:8000/api/v1/agents/"
+Write-Host "API Endpoint: $apiEndpoint"
+
+# Combine IP and Port for API Payload
+$ipPort = "${hostIP}:${alloyPort}"
+Write-Host "IP:Port combination for Alloy: $ipPort"
+
+# Step 5: Define Paths
+$downloadPath = "C:\Temp\alloy-installer-windows-amd64.exe.zip"
+$installerPath = "C:\Temp\alloy-installer-windows-amd64.exe"
+$installDir = "C:\Program Files\GrafanaLabs\Alloy"
+$configFilePath = "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+#$configFilePath =  "http://10.0.34.169/config.alloy"
+$backupConfigFilePath = "C:\Temp\config.alloy.backup"
+$newConfigFilePath = "C:\Temp\config.alloy"
+$curlCommand = "curl -o $newConfigFilePath http://10.0.34.144/config_windows.alloy"
+# Ensure C:\Temp exists
+if (-not (Test-Path "C:\Temp")) {
+    Write-Host "Creating C:\Temp directory..."
+    New-Item -ItemType Directory -Path "C:\Temp"
+}
+
+# Step 6: Download the Alloy Installer
+Write-Host "Checking if the Alloy installer is already downloaded..."
+if (Test-Path $downloadPath) {
+    Write-Host "Installer already exists at: $downloadPath. Skipping download."
+} else {
+    Write-Host "Downloading Alloy installer..."
+    Invoke-WebRequest -Uri "https://github.com/grafana/alloy/releases/latest/download/alloy-installer-windows-amd64.exe.zip" -OutFile $downloadPath
+    if (-not (Test-Path $downloadPath)) {
+        Write-Host "Failed to download the installer."
+        exit
+    }
+    Write-Host "Downloaded successfully to: $downloadPath"
+}
+
+# Step 7: Extract the ZIP file
+if (-not (Test-Path $installerPath)) {
+    Write-Host "Extracting the installer..."
+    Expand-Archive -Path $downloadPath -DestinationPath "C:\Temp" -Force
+    Write-Host "Extraction completed successfully."
+} else {
+    Write-Host "Installer already extracted."
+}
+
+# Step 8: Verify Installer
+if (-not (Test-Path $installerPath)) {
+    Write-Host "Installer not found. Extraction might have failed."
+    exit
+}
+
+# Step 9: Install Alloy
+Write-Host "Running the Alloy installer silently..."
+$installerArguments = "/S"
+$process = Start-Process -FilePath $installerPath -ArgumentList $installerArguments -PassThru -Wait
+$process.WaitForExit()
+if ($process.ExitCode -ne 0) {
+    Write-Host "Installer failed with exit code: $($process.ExitCode)"
+    exit
+}
+Write-Host "Alloy installed successfully."
+
+# Step 10: Backup Configuration File
+if (Test-Path $configFilePath) {
+    Write-Host "Backing up the original config file..."
+    Copy-Item -Path $configFilePath -Destination $backupConfigFilePath
+    Write-Host "Backup saved at: $backupConfigFilePath"
+} else {
+    Write-Host "Config file not found. Skipping backup."
+}
+
+#$curlCommand = "curl -o $newConfigFilePath http://10.0.34.169/config.alloy"
+
+# Execute the curl command and capture the response
+$response = Invoke-Expression $curlCommand
+
+# Check if the download was successful (by checking the file existence)
+if (Test-Path $newConfigFilePath) {
+    Write-Host "Configuration file downloaded to $newConfigFilePath"
+
+    # Now copy the downloaded file to the final destination
+    Write-Host "Copying the downloaded file to $configFilePath"
+    Copy-Item -Path $newConfigFilePath -Destination $configFilePath -Force
+    Write-Host "Config file replaced successfully at $configFilePath."
+} else {
+    Write-Host "Failed to download the config file."
+}
+
+# Step 11: Replace Configuration File
+#if (Test-Path $newConfigFilePath) {
+ #   Invoke-WebRequest -Uri "http://10.0.34.169/config.alloy" -OutFile $newConfigFilePath
+  #  Write-Host "Replacing the config file with the new configuration..."
+  #  Copy-Item -Path $newConfigFilePath -Destination $configFilePath -Force
+  #  Write-Host "Config file replaced successfully."
+#} else {
+ #   Write-Host "New config file not found. Skipping replacement."
+#}
+
+# Step 12: Restart the Alloy Service
+Write-Host "Restarting the Alloy service..."
+Restart-Service -Name 'Alloy'
+
+# Step 13: Verify Service Status
+$serviceStatus = Get-Service -Name 'Alloy' | Select-Object -ExpandProperty Status
+if ($serviceStatus -eq "Running") {
+    Write-Host "Alloy service is running successfully."
+} else {
+    Write-Host "Alloy service failed to start."
+}
+
+# Step 14: Prepare API Payload
+$payload = @{
+    host_name   = $env:COMPUTERNAME
+    ip_port     = "${hostIP}:${alloyPort}"
+    keycloak_id = $KeycloakId
+    agent_name  = $AgentName
+    status      = "Active"
+}
+
+# Convert payload to JSON
+$jsonPayload = $payload | ConvertTo-Json -Depth 10
+Write-Host "JSON Payload: $jsonPayload"
+
+# Step 15: Set TLS Version and Bypass SSL Validation (for testing)
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}
+
+# Step 16: Use PowerShell's Native API Method
+Write-Host "Sending POST request using PowerShell..."
+try {
+    $response = Invoke-RestMethod -Uri $apiEndpoint -Method POST -Body $jsonPayload -ContentType "application/json"
+    if ($response -and $response.status -eq "data_exists") {
+        Write-Host "Data already present on the server."
+    } else {
+        Write-Host "Response from server: $($response | ConvertTo-Json -Depth 10)"
+    }
+} catch {
+    Write-Host "Failed to send POST request. Error: $_"
+    Write-Host "Generated JSON Payload for Debugging:"
+    Write-Host $jsonPayload
+}
