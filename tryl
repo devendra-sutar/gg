@@ -1,12 +1,14 @@
-#!/bin/bash
+[Unit]
+Description=Alloy Service - Vendor-agnostic OpenTelemetry Collector distribution
+Documentation=https://github.com/open-telemetry/opentelemetry-collector
+After=network.target
 
-# Check if the operating system is Ubuntu by reading /etc/os-release
-if grep -iq "ubuntu" /etc/os-release; then
-  # Go to the frontend directory
-  cd /home/ubuntu/omega-code/frontend || exit 1
+[Service]
+Type=simple
+ExecStart=/path/to/alloy-binary --config /path/to/config.yaml
+Restart=on-failure
+RestartSec=5
+Environment=OTEL_LOG_LEVEL=info
 
-  # Run npm build in the background and log output
-  nohup npm run build > build.log 2>&1 &
-else
-  echo "This script only works on Ubuntu."
-fi
+[Install]
+WantedBy=multi-user.target
