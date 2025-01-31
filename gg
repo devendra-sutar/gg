@@ -40,13 +40,50 @@ for SERVICE in "${SERVICES[@]}"; do
     STATUS=$(systemctl is-active "$SERVICE")
 
     if [[ "$STATUS" != "active" ]]; then
-        echo "❌ Service $SERVICE is not running!"
+        echo " Service $SERVICE is not running!"
         exit 1  # Fail the pipeline
     else
-        echo "✅ Service $SERVICE is running."
+        echo " Service $SERVICE is running."
     fi
 done
 
-echo "✅ All services are running correctly."
+echo " All services are running correctly."
+exit 0  # Success
+
+
+
+#!/bin/bash
+
+echo "Checking service statuses..."
+for SERVICE in "${SERVICES[@]}"; do
+    STATUS=$(systemctl is-active "$SERVICE")
+
+    if [[ "$STATUS" != "active" ]]; then
+        echo "❌ Service $SERVICE is not running!"
+        
+        # Check service logs for recent errors
+        echo "🔍 Fetching logs for $SERVICE..."
+        journalctl -u "$SERVICE" --no-pager --lines=10
+
+        # Attempt to restart the service
+        echo "🔄 Trying to restart $SERVICE..."
+        sudo systemctl restart "$SERVICE"
+
+        # Recheck service status after restart attempt
+        sleep 5  # Wait for a few seconds before rechecking
+        STATUS_AFTER_RESTART=$(systemctl is-active "$SERVICE")
+
+        if [[ "$STATUS_AFTER_RESTART" != "active" ]]; then
+            echo " $SERVICE failed to restart. Check logs for more details."
+            exit 1  # Fail pipeline if restart fails
+        else
+            echo " $SERVICE restarted successfully."
+        fi
+    else
+        echo " Service $SERVICE is running."
+    fi
+done
+
+echo " All services are running correctly."
 exit 0  # Success
 
