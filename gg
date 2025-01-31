@@ -12,3 +12,5 @@ cd /home/ubuntu/omega-code/frontend && sudo cp -rf dist/*  /var/www/html/
 cd /home/ubuntu/omega-code/frontend && sudo nginx -t 
 cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload nginx
 cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service
+
+- sshpass -p "linux" ssh -o StrictHostKeyChecking=no -t ubuntu@${FRONTEND} < sample.sh
