@@ -1,0 +1,71 @@
+#!/bin/bash
+
+echo "Checking service statuses..."
+for SERVICE in "${SERVICES[@]}"; do
+    STATUS=$(systemctl is-active "$SERVICE")
+
+    if [[ "$STATUS" != "active" ]]; then
+        echo " Service $SERVICE is not running!"
+        
+        # Fetch service logs for recent errors
+        echo " Fetching logs for $SERVICE..."
+        LOGS=$(journalctl -u "$SERVICE" --no-pager --lines=10)
+
+        echo " Last 10 logs for $SERVICE:"
+        echo "$LOGS"
+
+        # Attempt to restart the service
+        echo " Trying to restart $SERVICE..."
+        sudo systemctl restart "$SERVICE"
+
+        # Recheck service status after restart attempt
+        sleep 5  # Wait a few seconds before rechecking
+        STATUS_AFTER_RESTART=$(systemctl is-active "$SERVICE")
+
+        if [[ "$STATUS_AFTER_RESTART" != "active" ]]; then
+            echo " $SERVICE failed to restart. Attempting auto-healing..."
+            
+            # Healing logic based on logs
+            if echo "$LOGS" | grep -qi "failed to bind"; then
+                echo " Detected port binding issue. Trying to free the port..."
+                PORT=$(ss -tulnp | grep "$SERVICE" | awk '{print $5}' | cut -d: -f2)
+                if [[ -n "$PORT" ]]; then
+                    sudo fuser -k "$PORT"/tcp
+                    echo " Retrying $SERVICE restart..."
+                    sudo systemctl restart "$SERVICE"
+                fi
+            elif echo "$LOGS" | grep -qi "permission denied"; then
+                echo " Detected permission issue. Fixing permissions..."
+                sudo chmod 755 /var/run/"$SERVICE" /var/log/"$SERVICE"
+                echo " Retrying $SERVICE restart..."
+                sudo systemctl restart "$SERVICE"
+            elif echo "$LOGS" | grep -qi "missing file"; then
+                echo " Detected missing file issue. Attempting reinstallation..."
+                sudo apt install --reinstall "$SERVICE" -y
+                echo " Retrying $SERVICE restart..."
+                sudo systemctl restart "$SERVICE"
+            else
+                echo " Unhandled error. Manual intervention required."
+                exit 1
+            fi
+            
+            # Final status check
+            sleep 5
+            STATUS_FINAL=$(systemctl is-active "$SERVICE")
+
+            if [[ "$STATUS_FINAL" != "active" ]]; then
+                echo " $SERVICE still failed after healing attempts."
+                exit 1
+            else
+                echo " $SERVICE successfully recovered after healing."
+            fi
+        else
+            echo " $SERVICE restarted successfully."
+        fi
+    else
+        echo " Service $SERVICE is running."
+    fi
+done
+
+echo " All services are running correctly."
+exit 0  # Success
