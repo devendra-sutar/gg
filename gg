@@ -14,3 +14,39 @@ cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload n
 cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service
 
 - sshpass -p "linux" ssh -o StrictHostKeyChecking=no -t ubuntu@${FRONTEND} < sample.sh
+
+
+
+
+#!/bin/bash
+
+LGTM=0.0.0.0
+echo "VITE_LGTM_IP=${LGTM}" >> /home/ubuntu/omega-code/frontend/.env
+
+sudo sed -i "s|proxy_pass https://:3000;|proxy_pass https://${LGTM}:3000;|g" /etc/nginx/sites-available/default
+sudo apt update
+sudo apt install npm -y
+cd /home/ubuntu/omega-code/frontend && npm run build
+cd /home/ubuntu/omega-code/frontend && sudo cp -rf dist/*  /var/www/html/ 
+cd /home/ubuntu/omega-code/frontend && sudo nginx -t 
+cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload nginx
+cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service  
+
+# SERVICE CHECK - If any service fails, the pipeline will exit with an error
+SERVICES=("nginx" "omega-backend")  # Removed Docker from the check
+
+echo "Checking service statuses..."
+for SERVICE in "${SERVICES[@]}"; do
+    STATUS=$(systemctl is-active "$SERVICE")
+
+    if [[ "$STATUS" != "active" ]]; then
+        echo "❌ Service $SERVICE is not running!"
+        exit 1  # Fail the pipeline
+    else
+        echo "✅ Service $SERVICE is running."
+    fi
+done
+
+echo "✅ All services are running correctly."
+exit 0  # Success
+
