@@ -1,81 +1,100 @@
-# Retrieve the primary IP address of the machine
-$INSTANCE_IP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" }).IPAddress
+#!/bin/bash
 
-# Path to the configuration file
-$configFilePath = "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+# Configuration
+SERVICES=("prometheus" "grafana" "loki" "tempo")
+MAX_RETRIES=3
+LOG_FILE="/var/log/service_monitor.log"
+NOTIFICATION_EMAIL="admin@example.com"
 
-# Ensure the file exists; if not, create a new one
-if (!(Test-Path -Path $configFilePath)) {
-    Write-Host "Configuration file does not exist. Creating a new file..."
-    New-Item -ItemType File -Path $configFilePath -Force
+# Functions
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
 }
 
-# Define the new configuration content
-$configContent = @"
-prometheus.exporter.windows "integration_alloy" {
-  enabled_collectors = ["ad", "cpu", "cs", "logical_disk", "net", "os", "service", "textfile", "time", "diskdrive", "services", "process", "adfs", "cache", "cpu_info", "dfsr", "dhcp", "dns", "fsrmquota", "iis", "logical_disk", "logon", "memory", "msmq", "mssql", "netframework_clrexceptions", "netframework_clrinterop", "netframework_clrjit", "netframework_clrloading", "netframework_clrlocksandthreads", "netframework_clrmemory", "netframework_clrremoting", "netframework_clrsecurity", "net", "remote_fx", "tcp", "vmware"]  
- }
-
-prometheus.scrape "integration_alloy" {
-  scrape_interval = "10s" 
-  job_name = "windows" 
-  targets = prometheus.exporter.windows.integration_alloy.targets
-  forward_to = [prometheus.remote_write.local_prom.receiver]
-}
-prometheus.remote_write "local_prom" {
-    endpoint {
-        url = "http://$INSTANCE_IP:9090/api/v1/write"
-    }
+notify() {
+    local subject=$1
+    local body=$2
+    echo "$body" | mail -s "$subject" "$NOTIFICATION_EMAIL"
+    log "Notification sent: $subject"
 }
 
-loki.write "grafana_loki" {
-    endpoint {
-        url = "http://$INSTANCE_IP:3100/loki/api/v1/push"
-    }
+check_service_status() {
+    local service=$1
+    local status=$(systemctl is-active "$service")
+    echo "$status"
 }
 
-loki.source.windowsevent "logs_windows_system" {
-  eventlog_name          = "System"
-  bookmark_path          = "./bookmarks-sys.xml"
-  poll_interval          = "0s"
-  use_incoming_timestamp = true
-  forward_to             = [loki.write.grafana_loki.receiver]
-  labels                 = {
-    job      = "integrations/windows_exporter",
-  }
+restart_service() {
+    local service=$1
+    log "Attempting to restart $service..."
+    sudo systemctl restart "$service"
 }
 
-loki.source.windowsevent "logs_windows_application" {
-  eventlog_name          = "Application"
-  bookmark_path          = "./bookmarks-app.xml"
-  poll_interval          = "0s"
-  use_incoming_timestamp = true
-  forward_to             = [loki.write.grafana_loki.receiver]
-  labels                 = {
-    job      = "integrations/windows_exporter1",
-  }
+fetch_logs() {
+    local service=$1
+    local lines=$2
+    journalctl -u "$service" --no-pager --lines="$lines"
 }
 
-loki.source.windowsevent "logs_windows_security" {
-  eventlog_name          = "Security"
-  bookmark_path          = "./bookmarks-security.xml"
-  poll_interval          = "0s"
-  use_incoming_timestamp = true
-  forward_to             = [loki.write.grafana_loki.receiver]
-  labels                 = {
-    job      = "integrations/windows_security",
-  }
+heal_service() {
+    local service=$1
+    local logs=$2
+
+    if echo "$logs" | grep -qi "failed to bind"; then
+        log "Detected port binding issue. Trying to free the port..."
+        local port=$(ss -tulnp | grep "$service" | awk '{print $5}' | cut -d: -f2)
+        if [[ -n "$port" ]]; then
+            sudo fuser -k "$port"/tcp
+            restart_service "$service"
+        fi
+    elif echo "$logs" | grep -qi "permission denied"; then
+        log "Detected permission issue. Fixing permissions..."
+        sudo chmod 755 /var/run/"$service" /var/log/"$service"
+        restart_service "$service"
+    elif echo "$logs" | grep -qi "missing file"; then
+        log "Detected missing file issue. Attempting reinstallation..."
+        sudo apt install --reinstall "$service" -y
+        restart_service "$service"
+    else
+        log "Unhandled error. Manual intervention required."
+        notify "Critical Failure: $service" "Unhandled error detected in $service. Manual intervention required."
+        exit 1
+    fi
 }
-"@
 
-# Backup the existing file (if needed)
-$backupPath = "$configFilePath.bak"
-if (Test-Path -Path $configFilePath) {
-    Copy-Item -Path $configFilePath -Destination $backupPath -Force
-    Write-Host "Backup created at: $backupPath"
-}
+# Main Script
+log "Starting service status check..."
 
-# Write the new configuration content, replacing the existing file
-Set-Content -Path $configFilePath -Value $configContent -Force
+for SERVICE in "${SERVICES[@]}"; do
+    RETRY_COUNT=0
+    STATUS=$(check_service_status "$SERVICE")
 
-Write-Host "Configuration file updated successfully at: $configFilePath"
+    if [[ "$STATUS" != "active" ]]; then
+        log "Service $SERVICE is not running!"
+        LOGS=$(fetch_logs "$SERVICE" 10)
+        log "Last 10 logs for $SERVICE:"
+        log "$LOGS"
+
+        while [[ "$STATUS" != "active" && $RETRY_COUNT -lt $MAX_RETRIES ]]; do
+            heal_service "$SERVICE" "$LOGS"
+            sleep 5
+            STATUS=$(check_service_status "$SERVICE")
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+        done
+
+        if [[ "$STATUS" != "active" ]]; then
+            log "Service $SERVICE failed to start after $MAX_RETRIES attempts."
+            notify "Service Failure: $SERVICE" "Service $SERVICE failed to start after $MAX_RETRIES attempts. Logs: $LOGS"
+            exit 1
+        else
+            log "Service $SERVICE successfully recovered after healing."
+            notify "Service Recovery: $SERVICE" "Service $SERVICE successfully recovered after healing."
+        fi
+    else
+        log "Service $SERVICE is running."
+    fi
+done
+
+log "All services are running correctly."
+notify "All Services Running" "All monitored services are running correctly."
+exit 0
