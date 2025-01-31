@@ -1,5 +1,5 @@
 #!/bin/bash
-
+SERVICES=("nginx" "omega-backend")
 echo "Checking service statuses..."
 for SERVICE in "${SERVICES[@]}"; do
     STATUS=$(systemctl is-active "$SERVICE")
