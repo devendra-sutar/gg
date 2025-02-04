@@ -23,3 +23,15 @@ django-extensions==3.2.3  # Since you're using runserver_plus
 Werkzeug==3.0.1  # Required for runserver_plus
 
 /home/ubuntu/omega-code/backend/requirement.xt
+
+
+PID=$(lsof -ti :8000)
+
+# Check if a process is running on port 8000
+if [ -n "$PID" ]; then
+    echo "Killing process on port 8000 (PID: $PID)"
+    kill -9 $PID
+    echo "Process terminated."
+else
+    echo "No process found running on port 8000."
+fi
