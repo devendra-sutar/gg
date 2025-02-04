@@ -1,9 +1,25 @@
-variable "VUE_APP_KEYCLOAK_RELM" {
-  description = "The Keycloak realm"
-  type        = string
-}
+asgiref==3.8.1
+Django==3.2.25
+django-cors-headers==4.4.0
+django-extensions==3.2.3
+djangorestframework==3.15.1
+drf-yasg==1.21.7
+gunicorn==23.0.0
+python-decouple==3.8
+python-dotenv==1.0.1
+pytz==2024.2
+sqlparse==0.5.1
+requests==2.32.3
+PyJWT==2.9.0
+PyYAML==6.0.2
+environs==10.0.0
+python-keycloak==5.1.1
+paramiko==3.5.0
+pywinrm==0.5.0
+Werkzeug>=2.1.0
+pyOpenSSL>=23.0.0
+psycopg2-binary==2.9.9  # For PostgreSQL connection
+django-extensions==3.2.3  # Since you're using runserver_plus
+Werkzeug==3.0.1  # Required for runserver_plus
 
-variable "VUE_APP_KEYCLOAK_CLIENT" {
-  description = "The Keycloak client"
-  type        = string
-}
+/home/ubuntu/omega-code/backend/requirement.xt
