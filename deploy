@@ -1,70 +1,12 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
-  name: {{ include "omega.fullname" . }}
-  labels:
-    {{- include "omega.labels" . | nindent 4 }}
+  name: my-pod
 spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      {{- include "omega.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "omega.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "omega.serviceAccountName" . }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      containers:
-        {{- range $index, $container := .Values.containers }}
-        - name: {{ $container.name }}
-          image: "{{ $container.image.repository }}:{{ $container.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ $container.image.pullPolicy }}
-          ports:
-            - name: https
-              containerPort: {{ $container.ports[0].containerPort }}
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: {{ $container.livenessProbe.httpGet.path }}
-              port: {{ $container.livenessProbe.httpGet.port }}
-          readinessProbe:
-            httpGet:
-              path: {{ $container.readinessProbe.httpGet.path }}
-              port: {{ $container.readinessProbe.httpGet.port }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            {{- toYaml .Values.volumeMounts | nindent 12 }}
-        {{- end }}
-      {{- with .Values.volumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+  containers:
+    - name: my-container
+      image: myregistry.com/my-image:latest
+      ports:
+        - containerPort: 80
+  imagePullSecrets:
+    - name: my-registry-secret
