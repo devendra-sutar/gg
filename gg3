@@ -1,1 +1,91 @@
-Error: INSTALLATION FAILED: parse error at (omega/templates/deployment.yaml:36): bad character U+005B '['
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "omega.fullname" . }}
+  labels:
+    {{- include "omega.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "omega.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "omega.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "omega.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        # Frontend container
+        - name: {{ .Values.containers[0].name }}
+          image: "{{ .Values.containers[0].image.repository }}:{{ .Values.containers[0].image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.containers[0].image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: https
+          readinessProbe:
+            httpGet:
+              path: /
+              port: https
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+
+        # Backend container
+        - name: {{ .Values.containers[1].name }}
+          image: "{{ .Values.containers[1].image.repository }}:{{ .Values.containers[1].image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.containers[1].image.pullPolicy }}
+          ports:
+            - name: https
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: https
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: https
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 12 }}
+
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
