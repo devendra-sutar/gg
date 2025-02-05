@@ -3,15 +3,58 @@
 # Declare variables to be passed into your templates.
 
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+replicaCount: 2
 
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
-image:
-  repository: nginx
-  # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+# This section for containers. Multiple containers can be defined here.
+containers:
+  - name: web
+    image:
+      repository: nginx
+      pullPolicy: IfNotPresent
+      tag: ""
+    ports:
+      - containerPort: 443   # Changed to HTTPS port 443
+    livenessProbe:
+      httpGet:
+        path: /
+        port: https
+    readinessProbe:
+      httpGet:
+        path: /
+        port: https
+    volumeMounts:
+      - name: web-cert
+        mountPath: /etc/ssl/certs   # Adjusted for SSL certificate mount
+
+  - name: backend
+    image:
+      repository: python:3.9
+      pullPolicy: IfNotPresent
+      tag: ""
+    ports:
+      - containerPort: 8000   # Changed to HTTPS port 8000
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: https
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: https
+    volumeMounts:
+      - name: backend-cert
+        mountPath: /etc/ssl/certs   # Adjusted for SSL certificate mount
+
+# SSL Certificates - Volumes
+volumes:
+  - name: web-cert
+    secret:
+      secretName: web-ssl-cert   # Name of your web SSL certificate secret
+      optional: false
+  - name: backend-cert
+    secret:
+      secretName: backend-ssl-cert   # Name of your backend SSL certificate secret
+      optional: false
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
@@ -54,7 +97,11 @@ service:
   # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
   type: ClusterIP
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-  port: 80
+  ports:
+    - port: 443         # HTTPS port for frontend
+      targetPort: 443    # HTTPS port for frontend
+    - port: 8000        # HTTPS port for backend
+      targetPort: 8000   # HTTPS port for backend
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
@@ -89,11 +136,11 @@ resources: {}
 livenessProbe:
   httpGet:
     path: /
-    port: http
+    port: https
 readinessProbe:
   httpGet:
     path: /
-    port: http
+    port: https
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
@@ -119,4 +166,3 @@ volumeMounts: []
 nodeSelector: {}
 
 tolerations: []
-
