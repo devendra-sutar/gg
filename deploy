@@ -10,3 +10,10 @@ spec:
         - containerPort: 80
   imagePullSecrets:
     - name: my-registry-secret
+
+
+kubectl create secret docker-registry my-registry-secret \
+  --docker-server=myregistry.com \
+  --docker-username=randomuser \
+  --docker-password=randompassword \
+  --docker-email=randomemail@example.com
