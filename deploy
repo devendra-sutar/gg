@@ -31,48 +31,27 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        # Frontend container
-        - name: {{ .Values.containers[0].name }}
-          image: "{{ .Values.containers[0].image.repository }}:{{ .Values.containers[0].image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.containers[0].image.pullPolicy }}
+        {{- range $index, $container := .Values.containers }}
+        - name: {{ $container.name }}
+          image: "{{ $container.image.repository }}:{{ $container.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ $container.image.pullPolicy }}
           ports:
             - name: https
-              containerPort: 443
+              containerPort: {{ $container.ports[0].containerPort }}
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /
-              port: https
+              path: {{ $container.livenessProbe.httpGet.path }}
+              port: {{ $container.livenessProbe.httpGet.port }}
           readinessProbe:
             httpGet:
-              path: /
-              port: https
+              path: {{ $container.readinessProbe.httpGet.path }}
+              port: {{ $container.readinessProbe.httpGet.port }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             {{- toYaml .Values.volumeMounts | nindent 12 }}
-
-        # Backend container
-        - name: {{ .Values.containers[1].name }}
-          image: "{{ .Values.containers[1].image.repository }}:{{ .Values.containers[1].image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.containers[1].image.pullPolicy }}
-          ports:
-            - name: https
-              containerPort: 8000
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: https
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: https
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            {{- toYaml .Values.volumeMounts | nindent 12 }}
-
+        {{- end }}
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
