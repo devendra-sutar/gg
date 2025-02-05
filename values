@@ -1,0 +1,36 @@
+replicaCount: 2
+
+containers:
+  - name: frontend
+    image:
+      repository: frontend-app
+      pullPolicy: IfNotPresent
+      tag: ""
+    ports:
+      - containerPort: 443
+    livenessProbe:
+      httpGet:
+        path: /
+        port: https
+    readinessProbe:
+      httpGet:
+        path: /
+        port: https
+
+  - name: backend
+    image:
+      repository: backend-app
+      pullPolicy: IfNotPresent
+      tag: ""
+    ports:
+      - containerPort: 8000
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: https
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: https
+
+# SSL certificates, secret configuration, etc., follow
