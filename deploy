@@ -1,3 +1,8 @@
+{
+  "insecure-registries": ["myregistry.com:5000"]
+}
+
+
 # Tag the image
 docker tag my-image:latest myregistry.com/my-image:latest
 
