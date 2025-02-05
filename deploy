@@ -1,3 +1,10 @@
+# Tag the image
+docker tag my-image:latest myregistry.com/my-image:latest
+
+# Push the image to your local registry
+docker push myregistry.com/my-image:latest
+
+
 apiVersion: v1
 kind: Pod
 metadata:
