@@ -1,28 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: django-app
+  name: dev-back
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: django
+      app: client
   template:
     metadata:
       labels:
-        app: django
+        app: client
     spec:
       containers:
-      - name: django
-        image: my-django-image:latest
+      - name: dev-back
+        image: ashish7974/omega-backend
         env:
-        - name: POSTGRES_HOST
-          value: "mydb-service"
-        - name: POSTGRES_PORT
+        - name: DB_HOST
+          value: "10.0.34.241"
+        - name: DB_PORT
           value: "5432"
-        - name: POSTGRES_DB
-          value: "mydatabase"
-        - name: POSTGRES_USER
-          value: "myuser"
-        - name: POSTGRES_PASSWORD
-          value: "mypassword"
+        - name: DB_NAME
+          value: "test"
+        - name: DB_USER
+          value: "test"
+        - name: DB_PASSWORD
+          value: "linux"
+        - name: OMEGA_IP
+          value: "10.0.34.135"
