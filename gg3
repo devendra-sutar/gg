@@ -17,7 +17,9 @@ spec:
         image: ashish7974/omega-backend
         env:
         - name: DB_HOST
-          value: "10.0.34.241"
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP  # Automatically fetches the host (VM) IP
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
