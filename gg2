@@ -1,41 +1,123 @@
-INSTANCE_NAME: "default-instance"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: back-dev
+  namespace: devendra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dev
+  template:
+    metadata:
+      labels:
+        app: dev
+    spec:
+      containers:
+        - name: dev-back22
+          image: 10.0.34.111:5000/omega-backend
+          env:
+            - name: DB_HOST
+              value: "10.0.34.255"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "test"
+            - name: DB_USER
+              value: "test"
+            - name: DB_PASSWORD
+              value: "linux"
+            - name: OMEGA_IP
+              value: "10.0.34.112"
 
-validate:
-  stage: validate
-  script:
-    # Validate INSTANCE_NAME
-    - |
-      if [[ -z "${INSTANCE_NAME}" ]]; then
-        echo "Error: INSTANCE_NAME is not set!" && exit 1
-      elif [[ ! "${INSTANCE_NAME}" =~ ^[-a-zA-Z0-9]{1,50}$ ]]; then
-        echo "Error: INSTANCE_NAME must be 1-50 characters long and only contain alphanumeric characters and hyphens." && exit 1
-      fi
-      echo "Validation passed for INSTANCE_NAME=${INSTANCE_NAME}"
-    # Validate Terraform configuration
-    - terraform init -reconfigure
-    - terraform validate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-back-srv2
+  namespace: devendra
+spec:
+  type: ClusterIP
+  selector:
+    app: dev
+  ports:
+    - name: dev
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
 
-- terraform plan -var "instance_name=${INSTANCE_NAME}" -lock=false -out="planfile"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-deva
+  namespace: devendra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client22
+  template:
+    metadata:
+      labels:
+        app: client22
+    spec:
+      containers:
+        - name: deva
+          image: 10.0.34.111:5000/omega-frontend
+          env:
+            - name: VITE_OMEGA_IP
+              value: "10.0.34.112:30556"
+            - name: VITE_APP_KEYCLOCK_CLIENT
+              value: "cluster-testing1"
+            - name: VITE_APP_KEYCLOCK_REALM
+              value: "gitlab"
+            - name: VITE_LGTM_IP
+              value: "10.0.34.254"
 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-dev-srv
+  namespace: devendra
+spec:
+  type: ClusterIP
+  selector:
+    app: client22
+  ports:
+    - name: dev
+      protocol: TCP
+      port: 9980
+      targetPort: 9980
 
-- terraform apply -var "instance_name=${INSTANCE_NAME}" -lock=false "planfile"
-
-
-
-variable "instance_name" {
-  description = "Name of the instance"
-  type        = string
-  default     = "default-instance" # Default name if not provided
-  validation {
-    condition     = length(var.instance_name) > 0 && length(var.instance_name) <= 50
-    error_message = "The instance name must be between 1 and 50 characters long."
-  }
-  validation {
-    condition     = regex("^[-a-zA-Z0-9]+$", var.instance_name)
-    error_message = "The instance name can only contain alphanumeric characters and hyphens."
-  }
-}
-
- tags = {
-    Name = var.instance_name
-  }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-service
+  namespace: devendra
+spec:
+  ingressClassName: traefik  # Use the new field instead of annotation
+  tls:
+    - hosts:
+        - omega.com.coe.in
+      secretName: ingress-local-tls  # Refer to the TLS secret
+  rules:
+    - host: omega.com.coe.in
+      http:
+        paths:
+          - path: /api/v1/(.*)
+            pathType: ImplementationSpecific  # Use ImplementationSpecific for regex
+            backend:
+              service:
+                name: dev-back-srv2
+                port:
+                  number: 8000
+          - path: /(.*)
+            pathType: ImplementationSpecific  # Use ImplementationSpecific for regex
+            backend:
+              service:
+                name: front-dev-srv
+                port:
+                  number: 9980
