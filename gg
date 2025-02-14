@@ -1,3 +1,6 @@
+https://teamos3.sourcegraph.app
+sgp_ws0194f9ff924e7eaaa9c81e733a5536c0_da1440974b8c509f8d36a2f5525c6513538a965b12
+
 wget https://downloader.cursor.sh/linux/appImage/x64 -O cursor.AppImage
 
 LGTM=0.0.0.0
