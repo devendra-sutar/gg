@@ -1,3 +1,19 @@
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add tempo https://grafana.github.io/tempo/helm-charts
+helm repo add loki https://grafana.github.io/loki/helm-charts
+helm repo update
+
+helm install grafana grafana/grafana -n monitoring --create-namespace
+helm install loki grafana/loki-stack -n monitoring
+helm install tempo grafana/tempo -n monitoring
+kubectl port-forward svc/grafana -n monitoring 3000:80
+
+
+
+
+
+
+
 #!/bin/bash
 SERVICES=("nginx" "omega-backend")
 echo "Checking service statuses..."
