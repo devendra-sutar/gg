@@ -1,87 +1,19 @@
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo add tempo https://grafana.github.io/tempo/helm-charts
-helm repo add loki https://grafana.github.io/loki/helm-charts
-helm repo update
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v2.0.15 (GNU/Linux)
 
-helm install grafana grafana/grafana -n monitoring --create-namespace
-helm install loki grafana/loki-stack -n monitoring
-helm install tempo grafana/tempo -n monitoring
-kubectl port-forward svc/grafana -n monitoring 3000:80
-
-
-
-
-
-
-
-#!/bin/bash
-SERVICES=("nginx" "omega-backend")
-echo "Checking service statuses..."
-for SERVICE in "${SERVICES[@]}"; do
-    STATUS=$(systemctl is-active "$SERVICE")
-
-    if [[ "$STATUS" != "active" ]]; then
-        echo " Service $SERVICE is not running!"
-        
-        # Fetch service logs for recent errors
-        echo " Fetching logs for $SERVICE..."
-        LOGS=$(journalctl -u "$SERVICE" --no-pager --lines=10)
-
-        echo " Last 10 logs for $SERVICE:"
-        echo "$LOGS"
-
-        # Attempt to restart the service
-        echo " Trying to restart $SERVICE..."
-        sudo systemctl restart "$SERVICE"
-
-        # Recheck service status after restart attempt
-        sleep 5  # Wait a few seconds before rechecking
-        STATUS_AFTER_RESTART=$(systemctl is-active "$SERVICE")
-
-        if [[ "$STATUS_AFTER_RESTART" != "active" ]]; then
-            echo " $SERVICE failed to restart. Attempting auto-healing..."
-            
-            # Healing logic based on logs
-            if echo "$LOGS" | grep -qi "failed to bind"; then
-                echo " Detected port binding issue. Trying to free the port..."
-                PORT=$(ss -tulnp | grep "$SERVICE" | awk '{print $5}' | cut -d: -f2)
-                if [[ -n "$PORT" ]]; then
-                    sudo fuser -k "$PORT"/tcp
-                    echo " Retrying $SERVICE restart..."
-                    sudo systemctl restart "$SERVICE"
-                fi
-            elif echo "$LOGS" | grep -qi "permission denied"; then
-                echo " Detected permission issue. Fixing permissions..."
-                sudo chmod 755 /var/run/"$SERVICE" /var/log/"$SERVICE"
-                echo " Retrying $SERVICE restart..."
-                sudo systemctl restart "$SERVICE"
-            elif echo "$LOGS" | grep -qi "missing file"; then
-                echo " Detected missing file issue. Attempting reinstallation..."
-                sudo apt install --reinstall "$SERVICE" -y
-                echo " Retrying $SERVICE restart..."
-                sudo systemctl restart "$SERVICE"
-            else
-                echo " Unhandled error. Manual intervention required."
-                exit 1
-            fi
-            
-            # Final status check
-            sleep 5
-            STATUS_FINAL=$(systemctl is-active "$SERVICE")
-
-            if [[ "$STATUS_FINAL" != "active" ]]; then
-                echo " $SERVICE still failed after healing attempts."
-                exit 1
-            else
-                echo " $SERVICE successfully recovered after healing."
-            fi
-        else
-            echo " $SERVICE restarted successfully."
-        fi
-    else
-        echo " Service $SERVICE is running."
-    fi
-done
-
-echo " All services are running correctly."
-exit 0  # Success
+mQENBEkUTD8BCADWLy5d5IpJedHQQSXkC1VK/oAZlJEeBVpSZjMCn8LiHaI9Wq3G
+3Vp6wvsP1b3kssJGzVFNctdXt5tjvOLxvrEfRJuGfqHTKILByqLzkeyWawbFNfSQ
+93/8OunfSTXC1Sx3hgsNXQuOrNVKrDAQUqT620/jj94xNIg09bLSxsjN6EeTvyiO
+mtE9H1J03o9tY6meNL/gcQhxBvwuo205np0JojYBP0pOfN8l9hnIOLkA0yu4ZXig
+oKOVmf4iTjX4NImIWldT+UaWTO18NWcCrujtgHueytwYLBNV5N0oJIP2VYuLZfSD
+VYuPllv7c6O2UEOXJsdbQaVuzU1HLocDyipnABEBAAG0NG9wZW5TVVNFIFByb2pl
+Y3QgU2lnbmluZyBLZXkgPG9wZW5zdXNlQG9wZW5zdXNlLm9yZz6JATwEEwECACYC
+GwMGCwkIBwMCBBUCCAMEFgIDAQIeAQIXgAUCU2dN1AUJHR8ElQAKCRC4iy/UPb3C
+hGQrB/9teCZ3Nt8vHE0SC5NmYMAE1Spcjkzx6M4r4C70AVTMEQh/8BvgmwkKP/qI
+CWo2vC1hMXRgLg/TnTtFDq7kW+mHsCXmf5OLh2qOWCKi55Vitlf6bmH7n+h34Sha
+Ei8gAObSpZSF8BzPGl6v0QmEaGKM3O1oUbbB3Z8i6w21CTg7dbU5vGR8Yhi9rNtr
+hqrPS+q2yftjNbsODagaOUb85ESfQGx/LqoMePD+7MqGpAXjKMZqsEDP0TbxTwSk
+4UKnF4zFCYHPLK3y/hSH5SEJwwPY11l6JGdC1Ue8Zzaj7f//axUs/hTC0UZaEE+a
+5v4gbqOcigKaFs9Lc3Bj8b/lE10Y
+=i2TA
+-----END PGP PUBLIC KEY BLOCK-----
