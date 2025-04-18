@@ -1,94 +1,29 @@
-https://teamos3.sourcegraph.app
-sgp_ws0194f9ff924e7eaaa9c81e733a5536c0_da1440974b8c509f8d36a2f5525c6513538a965b12
+trigger_by_http.py
 
-wget https://downloader.cursor.sh/linux/appImage/x64 -O cursor.AppImage
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
 
-LGTM=0.0.0.0
-# sed -i "s/\${INSTANCE_IP}/$INSTANCE_IP/g" /etc/nginx/sites-available/default
-echo "VITE_LGTM_IP=${LGTM}" >> /home/ubuntu/omega-code/frontend/.env
+def print_payload(**kwargs):
+    conf = kwargs["dag_run"].conf
+    print(f"Received payload: {conf}")
 
-sudo sed -i "s|proxy_pass https://:3000;|proxy_pass https://${LGTM}:3000;|g" /etc/nginx/sites-available/default
-sudo apt update
-sudo apt install npm -y
-cd /home/ubuntu/omega-code/frontend && npm run build
-cd /home/ubuntu/omega-code/frontend && sudo cp -rf dist/*  /var/www/html/ 
-#sudo systemctl restart omega-backend.service
-#sudo systemctl reload nginx
-cd /home/ubuntu/omega-code/frontend && sudo nginx -t 
-cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload nginx
-cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service
+with DAG(
+    dag_id="trigger_by_http",
+    start_date=days_ago(1),
+    schedule_interval=None,
+    catchup=False
+) as dag:
 
-- sshpass -p "linux" ssh -o StrictHostKeyChecking=no -t ubuntu@${FRONTEND} < sample.sh
-
-
-
-
-#!/bin/bash
-
-LGTM=0.0.0.0
-echo "VITE_LGTM_IP=${LGTM}" >> /home/ubuntu/omega-code/frontend/.env
-
-sudo sed -i "s|proxy_pass https://:3000;|proxy_pass https://${LGTM}:3000;|g" /etc/nginx/sites-available/default
-sudo apt update
-sudo apt install npm -y
-cd /home/ubuntu/omega-code/frontend && npm run build
-cd /home/ubuntu/omega-code/frontend && sudo cp -rf dist/*  /var/www/html/ 
-cd /home/ubuntu/omega-code/frontend && sudo nginx -t 
-cd /home/ubuntu/omega-code/frontend && echo "linux" | sudo -S systemctl reload nginx
-cd /home/ubuntu/omega-code/frontend && sudo systemctl restart omega-backend.service  
-
-# SERVICE CHECK - If any service fails, the pipeline will exit with an error
-SERVICES=("nginx" "omega-backend")  # Removed Docker from the check
-
-echo "Checking service statuses..."
-for SERVICE in "${SERVICES[@]}"; do
-    STATUS=$(systemctl is-active "$SERVICE")
-
-    if [[ "$STATUS" != "active" ]]; then
-        echo " Service $SERVICE is not running!"
-        exit 1  # Fail the pipeline
-    else
-        echo " Service $SERVICE is running."
-    fi
-done
-
-echo " All services are running correctly."
-exit 0  # Success
+    task = PythonOperator(
+        task_id="print_conf",
+        python_callable=print_payload,
+        provide_context=True
+    )
 
 
-
-#!/bin/bash
-
-echo "Checking service statuses..."
-for SERVICE in "${SERVICES[@]}"; do
-    STATUS=$(systemctl is-active "$SERVICE")
-
-    if [[ "$STATUS" != "active" ]]; then
-        echo "❌ Service $SERVICE is not running!"
-        
-        # Check service logs for recent errors
-        echo "🔍 Fetching logs for $SERVICE..."
-        journalctl -u "$SERVICE" --no-pager --lines=10
-
-        # Attempt to restart the service
-        echo "🔄 Trying to restart $SERVICE..."
-        sudo systemctl restart "$SERVICE"
-
-        # Recheck service status after restart attempt
-        sleep 5  # Wait for a few seconds before rechecking
-        STATUS_AFTER_RESTART=$(systemctl is-active "$SERVICE")
-
-        if [[ "$STATUS_AFTER_RESTART" != "active" ]]; then
-            echo " $SERVICE failed to restart. Check logs for more details."
-            exit 1  # Fail pipeline if restart fails
-        else
-            echo " $SERVICE restarted successfully."
-        fi
-    else
-        echo " Service $SERVICE is running."
-    fi
-done
-
-echo " All services are running correctly."
-exit 0  # Success
-
+airflow dags list
+curl -X POST "http://localhost:8080/api/v1/dags/trigger_by_http/dagRuns" \
+     -H "Content-Type: application/json" \
+     -u "airflow:airflow" \
+     -d '{"conf": {"message": "Hello from webhook"}}'
